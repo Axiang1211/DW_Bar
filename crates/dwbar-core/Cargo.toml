@@ -1,0 +1,29 @@
+[package]
+name = "dwbar-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "DW Bar core: taskbar placement, fullscreen detection, AI quota readers"
+
+[features]
+# Type-check the Win32 code on a non-Windows machine (cargo check only, never links).
+lint-win = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+
+# windows-sys is plain declarations, so it builds on any OS; the code that calls it
+# is compiled only on Windows (or with `lint-win` for a Linux type-check).
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_UI_Accessibility",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DW Bar 設定</title>
+    <link rel="stylesheet" href="/src/settings.css" />
+  </head>
+  <body>
+    <nav class="side" aria-label="設定分類">
+      <div class="brand"><span class="ring" id="brandRing"></span><b>DW Bar</b><small id="ver"></small></div>
+      <a href="#usage" data-page="usage">用量</a>
+      <a href="#position" data-page="position">位置</a>
+      <a href="#look" data-page="look">外觀</a>
+      <a href="#agents" data-page="agents">AI 偵測</a>
+      <a href="#general" data-page="general">一般</a>
+      <a href="#diag" data-page="diag">診斷</a>
+    </nav>
+
+    <main>
+      <!-- 用量 -->
+      <section id="page-usage" class="page">
+        <header>
+          <h1>用量</h1>
+          <button class="btn" id="refresh">立即更新</button>
+        </header>
+        <p class="hint" id="usageHint"></p>
+        <div class="cards" id="cards"></div>
+      </section>
+
+      <!-- 位置 -->
+      <section id="page-position" class="page">
+        <header><h1>位置</h1></header>
+        <div class="group">
+          <div class="row">
+            <div class="lbl"><b>膠囊位置</b><span>自動：工作列置中時放最左邊（同 Windows 小工具），靠左時放系統匣左側。</span></div>
+            <div class="seg" data-key="slot">
+              <button value="auto">自動</button><button value="left">最左邊</button><button value="tray">系統匣左側</button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>水平微調</b><span>單位為像素，正數往右。可用來避開小工具或其他圖示。</span></div>
+            <div class="num"><button data-step="-4" aria-label="往左">−</button><input id="offset" type="number" step="1" /><button data-step="4" aria-label="往右">＋</button></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>附著方式</b><span>嵌入：成為工作列的一部分，跟著工作列移動與隱藏。若顯示異常，改用浮貼。</span></div>
+            <div class="seg" data-key="attach"><button value="embed">嵌入工作列</button><button value="overlay">浮貼在上方</button></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>全螢幕時自動隱藏</b><span>玩遊戲、看影片、簡報時不顯示。</span></div>
+            <label class="switch"><input type="checkbox" data-key="hide_fullscreen" /><i></i></label>
+          </div>
+        </div>
+        <p class="hint" id="placeHint"></p>
+      </section>
+
+      <!-- 外觀 -->
+      <section id="page-look" class="page">
+        <header><h1>外觀</h1></header>
+        <div class="group">
+          <div class="row">
+            <div class="lbl"><b>主題</b><span>跟隨系統會依 Windows 的深色／淺色模式切換。</span></div>
+            <div class="seg" data-key="theme"><button value="auto">跟隨系統</button><button value="dark">深色</button><button value="light">淺色</button></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>顯示百分比</b><span>在圖示旁顯示 5 小時額度剩餘 %。關閉時只顯示圖示，滑鼠停留可看詳細。</span></div>
+            <label class="switch"><input type="checkbox" data-key="show_percent" /><i></i></label>
+          </div>
+        </div>
+        <div class="legend">
+          <span class="ring big" id="legendRing"></span>
+          <ul>
+            <li><i class="sw sw-5"></i>外圈上半弧：5 小時額度剩餘</li>
+            <li><i class="sw sw-w"></i>內圈：每週額度剩餘</li>
+            <li><i class="sw sw-ok"></i>綠 ≥ 50%　<i class="sw sw-warn"></i>黃 ≥ 20%　<i class="sw sw-crit"></i>紅 &lt; 20%</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- AI 偵測 -->
+      <section id="page-agents" class="page">
+        <header><h1>AI 偵測</h1></header>
+        <p class="hint">只有偵測到命令列工具的 AI 才會出現在工作列。找不到時，可以貼上執行檔或資料夾的完整路徑。</p>
+        <div class="group" id="agentRows"></div>
+      </section>
+
+      <!-- 一般 -->
+      <section id="page-general" class="page">
+        <header><h1>一般</h1></header>
+        <div class="group">
+          <div class="row">
+            <div class="lbl"><b>開機時啟動</b><span>登入 Windows 後自動開啟 DW Bar。</span></div>
+            <label class="switch"><input type="checkbox" data-key="autostart" /><i></i></label>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>更新頻率</b><span>每次更新會在背景短暫執行一次各家的命令列工具。</span></div>
+            <select id="refreshMin">
+              <option value="2">每 2 分鐘</option><option value="5">每 5 分鐘</option><option value="10">每 10 分鐘</option>
+              <option value="15">每 15 分鐘</option><option value="30">每 30 分鐘</option><option value="60">每小時</option>
+            </select>
+          </div>
+        </div>
+        <div class="group danger">
+          <div class="row">
+            <div class="lbl"><b>結束 DW Bar</b><span>關閉膠囊與背景更新。之後可從開始功能表再開啟。</span></div>
+            <button class="btn" id="quit">結束</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 診斷 -->
+      <section id="page-diag" class="page">
+        <header>
+          <h1>診斷</h1>
+          <button class="btn" id="copyDiag">複製診斷資訊</button>
+        </header>
+        <dl class="kv" id="kv"></dl>
+        <div class="loghead"><b>紀錄</b><button class="btn small" id="reloadLog">重新整理</button></div>
+        <pre class="log" id="log"></pre>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/settings.js"></script>
+  </body>
+</html>

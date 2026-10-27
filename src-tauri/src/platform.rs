@@ -1,0 +1,117 @@
+//! Taskbar placement glue. All functions run on the UI thread.
+//! Off Windows these are no-ops, so the UI can still be developed on any OS
+//! (the capsule then shows as a small floating window).
+use crate::state::AppState;
+use tauri::{AppHandle, Manager, WebviewWindow};
+
+#[cfg(windows)]
+fn hwnd_of(win: &WebviewWindow) -> Option<isize> {
+    win.hwnd().ok().map(|h| h.0 as isize)
+}
+
+/// `lint-win`: lets the Windows branches be type-checked on another OS.
+#[cfg(all(not(windows), feature = "lint-win"))]
+fn hwnd_of(_win: &WebviewWindow) -> Option<isize> {
+    None
+}
+
+/// Call once right after the capsule window is created.
+pub fn prepare(win: &WebviewWindow) {
+    #[cfg(windows)]
+    if let Some(hwnd) = hwnd_of(win) {
+        dwbar_core::win::embed::prepare(hwnd);
+    }
+    #[cfg(not(windows))]
+    let _ = win;
+}
+
+/// Attach, size, place and show/hide the capsule according to the config.
+pub fn apply(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(crate::CAPSULE) else { return };
+    let state = app.state::<AppState>();
+
+    #[cfg(any(windows, feature = "lint-win"))]
+    {
+        use crate::state::Placement;
+        use dwbar_core::{config::Attach, layout, win::{embed, taskbar}};
+        let Some(hwnd) = hwnd_of(&win) else { return };
+        let (config, width_logical, fullscreen) = {
+            let s = state.inner.lock().unwrap();
+            (s.config.clone(), s.capsule_width, s.fullscreen)
+        };
+        let Some((tb, info)) = taskbar::info() else {
+            // Explorer is restarting; TaskbarCreated will bring us back.
+            embed::set_visible(hwnd, false);
+            return;
+        };
+        let height = layout::capsule_height(&info);
+        let width = (width_logical * info.scale).round().max(height as f64) as i32;
+        let rect = layout::place(&info, config.slot, config.offset_x, width, height);
+
+        let embedded = match config.attach {
+            Attach::Embed => embed::embed(hwnd, tb),
+            Attach::Overlay => false,
+        };
+        if !embedded && embed::is_child_of(hwnd, tb) {
+            embed::unembed(hwnd);
+        }
+        embed::place(hwnd, rect, embedded.then_some(tb));
+        let visible = !(config.hide_fullscreen && fullscreen);
+        embed::set_visible(hwnd, visible);
+
+        let mut s = state.inner.lock().unwrap();
+        s.placement = Placement {
+            found_taskbar: true,
+            embedded,
+            fallback: config.attach == Attach::Embed && !embedded,
+            visible,
+            scale: info.scale,
+            centered: info.centered,
+            widgets: info.widgets,
+            taskbar: Some(info.rect),
+            capsule: Some(rect),
+        };
+    }
+
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    {
+        let s = state.inner.lock().unwrap();
+        let _ = win.set_size(tauri::LogicalSize::new(s.capsule_width, 40.0));
+        let _ = win.show();
+    }
+}
+
+/// Cheap periodic upkeep: keep z-order above the taskbar content and follow
+/// geometry changes (taskbar resized, DPI changed, alignment toggled).
+#[cfg_attr(not(any(windows, feature = "lint-win")), allow(dead_code))]
+pub fn tick(app: &AppHandle) {
+    #[cfg(any(windows, feature = "lint-win"))]
+    {
+        use dwbar_core::win::{embed, taskbar};
+        let Some(win) = app.get_webview_window(crate::CAPSULE) else { return };
+        let Some(hwnd) = hwnd_of(&win) else { return };
+        let (last, embedded) = {
+            let s = app.state::<AppState>();
+            let s = s.inner.lock().unwrap();
+            (s.placement.clone(), s.placement.embedded)
+        };
+        let now = taskbar::info();
+        let changed = match &now {
+            Some((_, info)) => {
+                Some(info.rect) != last.taskbar
+                    || info.centered != last.centered
+                    || info.widgets != last.widgets
+                    || (info.scale - last.scale).abs() > f64::EPSILON
+                    || (embedded && !embed::is_child_of(hwnd, now.as_ref().map(|n| n.0).unwrap_or(0)))
+            }
+            None => last.found_taskbar,
+        };
+        if changed {
+            apply(app);
+        } else if last.visible {
+            embed::ensure_top(hwnd, now.filter(|_| embedded).map(|n| n.0));
+        }
+    }
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    let _ = app;
+}
