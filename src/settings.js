@@ -92,6 +92,11 @@ function bindControls() {
       toast("請在跳出的視窗中登入");
       return;
     }
+    if (e.target.closest("[data-refresh]")) {
+      invoke("refresh_quotas");
+      toast("正在重新偵測…");
+      return;
+    }
     const d = e.target.closest("[data-disconnect]");
     if (d) invoke("disconnect_account", { agent: d.dataset.disconnect });
   });
@@ -188,9 +193,11 @@ function renderUsage() {
         ? q.windows.map((w) => bar(w, w.period === "week" || w.period === "month")).join("")
         : `<div class="bigbal"><small>餘額</small><b>${escapeHtml(q.balance || "—")}</b></div>`;
       else {
-        const cta = q.connected
-          ? `<button class="btn" data-connect="${q.agent}">重新登入</button>`
-          : connectButton(q.agent);
+        const cta = AGENTS[q.agent]?.local
+          ? `<button class="btn" data-refresh>重新偵測</button>`
+          : q.connected
+            ? `<button class="btn" data-connect="${q.agent}">重新登入</button>`
+            : connectButton(q.agent);
         body = `<div class="notice">${escapeHtml(q.notice || "沒有資料")}</div><div class="acts">${cta}</div>`;
       }
       const src = q.source === "account" ? "帳號" : q.source === "cli" ? "命令列" : "";

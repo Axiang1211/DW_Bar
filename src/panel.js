@@ -28,7 +28,7 @@ function card(q) {
   } else if (q.ok) {
     body = `<div class="mc-big"><b>${esc(q.balance || "—")}</b><small>餘額</small></div>`;
   } else {
-    const act = a.local ? "" : `<div class="mc-act"><button class="btn" data-connect="${q.agent}">${q.connected ? "重新登入" : "連結帳號"}</button></div>`;
+    const act = a.local ? `<div class="mc-act"><button class="btn" data-refresh>重新偵測</button></div>` : `<div class="mc-act"><button class="btn" data-connect="${q.agent}">${q.connected ? "重新登入" : "連結帳號"}</button></div>`;
     body = `<div class="mc-note">${esc(q.notice || "沒有資料")}</div>${act}`;
   }
   return `<article class="mc${q.agent === focusAgent ? " focus" : ""}">
@@ -67,6 +67,7 @@ $("#close").addEventListener("click", close);
 document.addEventListener("click", (e) => {
   const c = e.target.closest("[data-connect]");
   if (c) { close(); invoke("connect_account", { agent: c.dataset.connect }); }
+  if (e.target.closest("[data-refresh]")) invoke("refresh_quotas");
   const g = e.target.closest("[data-goto]");
   if (g) { close(); invoke("show_settings", { page: g.dataset.goto }); }
 });

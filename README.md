@@ -13,7 +13,7 @@
 1. 打開本專案的 **Actions** 分頁
 2. 點最上面一筆綠色勾勾的 **Build**
 3. 往下捲到 **Artifacts**，下載 **DW-Bar-Windows**（zip）
-4. 解壓縮，執行 `DW Bar_0.5.0_x64-setup.exe`（或 `.msi`）
+4. 解壓縮，執行 `DW Bar_0.5.1_x64-setup.exe`（或 `.msi`）
 5. 打開設定 →「AI 帳號」→ 按想要的 AI 的「連結」按鈕，在跳出的官方登入頁登入
 
 不需要安裝任何命令列工具。

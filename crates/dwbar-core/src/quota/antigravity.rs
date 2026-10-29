@@ -16,12 +16,17 @@ pub(crate) const NAME: &str = "Antigravity";
 #[cfg_attr(not(windows), allow(dead_code))]
 const PROBE: &str = r#"
 $ErrorActionPreference = 'SilentlyContinue'
-$out = @{ found = $false; summary = $null; status = $null; error = $null }
+$out = @{ found = $false; summary = $null; status = $null; error = $null; candidates = @(); tried = 0 }
 try {
-  $procs = Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -like 'language_server*' -and $_.CommandLine -match 'antigravity'
-  }
-  if (-not $procs) { $out.error = 'not_running'; $out | ConvertTo-Json -Compress -Depth 30; exit }
+  $all = @(Get-CimInstance Win32_Process)
+  # Anything that looks like Antigravity, for the diagnostics log (names only, never command lines).
+  $out.candidates = @($all | Where-Object { ($_.Name + ' ' + $_.ExecutablePath) -match 'antigravity|language_server|agy' } |
+    Select-Object -First 12 | ForEach-Object { @{ name = $_.Name; token = [bool]($_.CommandLine -match 'csrf_token') } })
+  # Antigravity's language server: carries a CSRF token and an Antigravity path / data dir.
+  $procs = @($all | Where-Object {
+    ($_.CommandLine -match 'csrf_token') -and (($_.CommandLine + ' ' + $_.ExecutablePath) -match 'antigravity')
+  })
+  if ($procs.Count -eq 0) { $out.error = 'not_running'; $out | ConvertTo-Json -Compress -Depth 30; exit }
   $out.found = $true
   Add-Type -TypeDefinition @"
 using System.Net; using System.Security.Cryptography.X509Certificates;
@@ -32,11 +37,12 @@ public class DwBarTrust : ICertificatePolicy { public bool CheckValidationResult
   $body = '{"metadata":{"ideName":"antigravity","extensionName":"antigravity","locale":"en","ideVersion":"unknown"}}'
   foreach ($p in $procs) {
     $cmd = $p.CommandLine
-    $token = if ($cmd -match '--csrf_token[= ]+(\S+)') { $Matches[1] } else { '' }
+    $token = if ($cmd -match '-?-csrf_token[= ]+"?([^\s"]+)') { $Matches[1] } else { '' }
     $ports = @(Get-NetTCPConnection -OwningProcess $p.ProcessId -State Listen | Select-Object -ExpandProperty LocalPort -Unique)
     if ($cmd -match '--extension_server_port[= ]+(\d+)') { $ports += [int]$Matches[1] }
     foreach ($port in $ports) {
       foreach ($scheme in @('https', 'http')) {
+        $out.tried++
         $base = "${scheme}://127.0.0.1:$port/exa.language_server_pb.LanguageServerService"
         $h = @{ 'X-Codeium-Csrf-Token' = $token; 'Connect-Protocol-Version' = '1' }
         try {
@@ -62,8 +68,31 @@ pub fn read() -> Reading {
     {
         match run_probe() {
             Ok(v) => {
+                let names: Vec<String> = v["candidates"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|c| format!("{}{}", c["name"].as_str().unwrap_or("?"), if c["token"] == true { "*" } else { "" }))
+                    .collect();
+                crate::log!(
+                    "antigravity",
+                    "found={} tried={} error={} processes=[{}]",
+                    v["found"],
+                    v["tried"],
+                    v["error"].as_str().unwrap_or("-"),
+                    names.join(", ")
+                );
                 if v["found"] != true {
-                    let mut r = Reading::failed("antigravity", NAME, "打開 Antigravity 後就會顯示用量");
+                    let why = match v["error"].as_str() {
+                        Some("not_running") | None => "打開 Antigravity 後就會顯示用量".to_string(),
+                        Some(e) => format!("讀取 Antigravity 失敗：{e}"),
+                    };
+                    let mut r = Reading::failed("antigravity", NAME, why);
+                    r.source = Some("app".into());
+                    return r;
+                }
+                if v["summary"].is_null() && v["status"].is_null() {
+                    let mut r = Reading::failed("antigravity", NAME, "找到 Antigravity，但它的額度服務沒有回應");
                     r.source = Some("app".into());
                     return r;
                 }
