@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Website-only changes are deployed by Cloudflare; no need to rebuild the app.
+    paths-ignore: ["site/**", "**.md"]
   pull_request:
+    paths-ignore: ["site/**", "**.md"]
   workflow_dispatch:
 
 concurrency:
