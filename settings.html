@@ -12,7 +12,7 @@
       <a href="#usage" data-page="usage">用量</a>
       <a href="#position" data-page="position">位置</a>
       <a href="#look" data-page="look">外觀</a>
-      <a href="#agents" data-page="agents">AI 偵測</a>
+      <a href="#agents" data-page="agents">AI 帳號</a>
       <a href="#general" data-page="general">一般</a>
       <a href="#diag" data-page="diag">診斷</a>
     </nav>
@@ -79,9 +79,15 @@
 
       <!-- AI 偵測 -->
       <section id="page-agents" class="page">
-        <header><h1>AI 偵測</h1></header>
-        <p class="hint">只有偵測到命令列工具的 AI 才會出現在工作列。找不到時，可以貼上執行檔或資料夾的完整路徑。</p>
+        <header><h1>AI 帳號</h1></header>
+        <p class="hint">連結帳號後就能顯示用量。登入在官方網站上完成，DW Bar 不會看到你的密碼；登入狀態只存在這台電腦。</p>
         <div class="group" id="agentRows"></div>
+        <div class="group">
+          <div class="row">
+            <div class="lbl"><b>清除登入資料</b><span>登出 DW Bar 裡的所有帳號，並刪除這台電腦上 DW Bar 保存的登入狀態。</span></div>
+            <button class="btn" id="clearAccounts">清除</button>
+          </div>
+        </div>
       </section>
 
       <!-- 一般 -->

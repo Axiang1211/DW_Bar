@@ -50,6 +50,7 @@ pub fn find(command: &str, custom: Option<&str>) -> Option<PathBuf> {
         .map(|v| std::env::split_paths(&v).collect::<Vec<_>>())
         .unwrap_or_default();
     in_dirs(command, path_dirs.into_iter().chain(known_dirs()))
+        .or_else(|| crate::apps::bundled_engines(command).into_iter().next())
 }
 
 fn in_dirs(command: &str, dirs: impl Iterator<Item = PathBuf>) -> Option<PathBuf> {

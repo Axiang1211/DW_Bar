@@ -17,6 +17,10 @@ function goto(page) {
 }
 window.addEventListener("hashchange", () => goto(location.hash.slice(1)));
 listen("goto", (e) => { location.hash = e.payload; });
+listen("account-linked", (e) => {
+  toast(`已連結 ${AGENTS[e.payload]?.account || "帳號"}`);
+  location.hash = "usage";
+});
 
 // ───────── saving ─────────
 let saveTimer = 0;
@@ -69,6 +73,20 @@ function bindControls() {
     $("#refresh").disabled = true;
   });
   $("#quit").addEventListener("click", () => invoke("quit"));
+  document.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-connect]");
+    if (c) {
+      invoke("connect_account", { agent: c.dataset.connect });
+      toast("請在跳出的視窗中登入");
+      return;
+    }
+    const d = e.target.closest("[data-disconnect]");
+    if (d) invoke("disconnect_account", { agent: d.dataset.disconnect });
+  });
+  $("#clearAccounts").addEventListener("click", () => {
+    invoke("clear_accounts");
+    toast("已清除登入資料");
+  });
   $("#reloadLog").addEventListener("click", loadLog);
   $("#copyDiag").addEventListener("click", copyDiag);
 }
@@ -93,27 +111,45 @@ function bar(w, weekly) {
   </div>`;
 }
 
+function connectButton(agent, primary = true) {
+  const a = AGENTS[agent];
+  return `<button class="btn${primary ? " primary" : ""}" data-connect="${agent}">連結 ${a.account}</button>`;
+}
+
 function renderUsage() {
   const cards = $("#cards");
   const shown = state.quotas.filter((q) => q.installed);
   $("#refresh").disabled = state.refreshing;
   $("#refresh").textContent = state.refreshing ? "更新中…" : "立即更新";
-  const newest = Math.max(0, ...state.quotas.map((q) => q.updated));
+  const newest = Math.max(0, ...state.quotas.filter((q) => q.ok).map((q) => q.updated));
   $("#usageHint").textContent = newest
     ? `上次更新 ${new Date(newest * 1000).toLocaleTimeString("zh-TW", { hour12: false })}，每 ${config.refresh_minutes} 分鐘自動更新。`
     : state.refreshing ? "正在讀取各家 AI 的額度…" : "";
   if (!shown.length) {
-    cards.innerHTML = `<div class="empty">${state.refreshing ? "正在偵測…" : "尚未偵測到 Claude Code 或 Codex。到「AI 偵測」指定路徑，或先安裝它們的命令列工具。"}</div>`;
+    cards.innerHTML = state.refreshing && !state.quotas.length
+      ? `<div class="empty">正在偵測…</div>`
+      : `<article class="card welcome">
+          <b>連結你的 AI 帳號</b>
+          <p>登入後，工作列就會顯示 5 小時與每週額度。登入是在官方網站上完成，DW Bar 不會看到你的密碼。</p>
+          <div class="acts">${connectButton("claude")}${connectButton("codex", false)}</div>
+        </article>`;
     return;
   }
   cards.innerHTML = shown
     .map((q) => {
-      const body = q.ok
-        ? q.windows.map((w) => bar(w, w.period === "week")).join("")
-        : `<div class="notice">${escapeHtml(q.notice || "沒有資料")}</div>`;
+      let body;
+      if (q.ok) body = q.windows.map((w) => bar(w, w.period === "week")).join("");
+      else {
+        const cta = q.connected
+          ? `<button class="btn" data-connect="${q.agent}">重新登入</button>`
+          : connectButton(q.agent);
+        body = `<div class="notice">${escapeHtml(q.notice || "沒有資料")}</div><div class="acts">${cta}</div>`;
+      }
+      const src = q.source === "account" ? "帳號" : q.source === "cli" ? "命令列" : "";
       const meta = [
         q.plan && `<span>方案 <b>${escapeHtml(q.plan)}</b></span>`,
         `<span>餘額 <b>${q.balance ? escapeHtml(q.balance) : "—"}</b></span>`,
+        src && `<span class="src">來源 ${src}</span>`,
       ].filter(Boolean).join("");
       return `<article class="card">
         <div class="card-head"><span class="ring">${ringSVG(q.agent, q)}</span>
@@ -125,19 +161,24 @@ function renderUsage() {
     .join("");
 }
 
-// ───────── AI 偵測 ─────────
+// ───────── AI 帳號 ─────────
 function renderAgents() {
   const box = $("#agentRows");
   if (box.dataset.built !== "1") {
     box.innerHTML = Object.entries(AGENTS)
       .filter(([id]) => id !== "dw")
-      .map(([id, a]) => `<div class="row" data-agent="${id}">
-        <span class="ring" style="width:36px;height:36px">${ringSVG(id, null)}</span>
-        <div class="lbl"><b>${a.name}</b><span class="where"></span>
-          <input class="path" placeholder="自訂路徑（選填），例如 C:\\Users\\你\\AppData\\Roaming\\npm\\${id}.cmd" spellcheck="false" />
+      .map(([id, a]) => `<div class="row agent" data-agent="${id}">
+        <span class="ring" style="width:40px;height:40px">${ringSVG(id, null)}</span>
+        <div class="lbl">
+          <b>${a.name}</b>
+          <span class="acct"></span>
+          <span class="where"></span>
+          <details><summary>進階：指定命令列工具路徑</summary>
+            <input class="path" placeholder="選填，例如 C:\\Users\\你\\.local\\bin\\${id === "claude" ? "claude" : "codex"}.exe" spellcheck="false" />
+          </details>
         </div>
-        <span class="agent-state"></span>
-        <label class="switch" title="在工作列顯示"><input type="checkbox" /><i></i></label>
+        <div class="acts col"><span class="link-btn"></span>
+          <label class="switch" title="在工作列顯示"><input type="checkbox" /><i></i></label></div>
       </div>`)
       .join("");
     $$(".row", box).forEach((row) => {
@@ -153,15 +194,24 @@ function renderAgents() {
   }
   $$(".row", box).forEach((row) => {
     const id = row.dataset.agent;
+    const a = AGENTS[id];
     const q = state.quotas.find((x) => x.agent === id);
     const c = config[id];
     $('input[type="checkbox"]', row).checked = c.enabled;
     const path = $(".path", row);
     if (document.activeElement !== path) path.value = c.custom_path || "";
-    const st = $(".agent-state", row);
-    st.className = "agent-state" + (q?.installed ? " found" : "");
-    st.textContent = !c.enabled ? "已關閉" : !q ? "偵測中…" : q.installed ? "已偵測到" : "未偵測到";
-    $(".where", row).textContent = q && !q.installed ? "找不到命令列工具，可在下方貼上路徑。" : "";
+    const acct = $(".acct", row);
+    if (c.connected) {
+      acct.innerHTML = `<i class="dot ok"></i>已連結 ${escapeHtml(a.account)}${q?.account ? `（${escapeHtml(q.account)}）` : ""}`;
+      $(".link-btn", row).innerHTML = `<button class="btn" data-disconnect="${id}">中斷連結</button>`;
+    } else {
+      acct.innerHTML = `<i class="dot"></i>尚未連結 ${escapeHtml(a.account)}（${escapeHtml(a.site)}）`;
+      $(".link-btn", row).innerHTML = connectButton(id);
+    }
+    const found = [q?.app && "桌面 App", q?.cli && "命令列工具"].filter(Boolean);
+    $(".where", row).textContent = found.length
+      ? `這台電腦上有：${found.join("、")}`
+      : "這台電腦上沒有偵測到它的 App，連結帳號就能顯示用量。";
   });
 }
 

@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const NAME: &str = "Claude Code";
+pub(crate) const NAME: &str = "Claude";
 
 /// Claude Code's profile file, which names the signed-in account.
 fn profile() -> Value {
@@ -65,6 +65,7 @@ pub fn read(custom: Option<&str>) -> Reading {
     while let Some(message) = engine.next(deadline) {
         if message["type"] == "control_response" {
             let mut reading = parse_usage(&message["response"]);
+            reading.source = Some("cli".into());
             reading.account = profile()["emailAddress"].as_str().map(str::to_owned);
             return reading;
         }
@@ -93,6 +94,20 @@ pub fn parse_usage(response: &Value) -> Reading {
     if !limits.is_object() {
         return Reading::failed("claude", NAME, "這次沒有讀到 Claude 額度，稍後自動重試");
     }
+    let mut reading = Reading::empty("claude", NAME);
+    reading.windows = windows(limits);
+    if reading.windows.is_empty() {
+        reading.notice = Some("Claude 回傳了無法辨識的額度資料".into());
+        return reading;
+    }
+    reading.ok = true;
+    reading.plan = payload["subscription_type"].as_str().map(str::to_owned);
+    reading
+}
+
+/// The windows of a Claude usage object (`five_hour`, `seven_day`, …). The CLI's
+/// `rate_limits` and claude.ai's `/usage` share this shape.
+pub(crate) fn windows(limits: &Value) -> Vec<Window> {
     let window = |key: &str, period: Period, label: &str| {
         let v = &limits[key];
         let used = v["utilization"].as_f64().filter(|p| p.is_finite())?;
@@ -102,19 +117,13 @@ pub fn parse_usage(response: &Value) -> Reading {
             .map(|d| d.timestamp());
         Some(Window { period, label: label.into(), used_percent: used.clamp(0.0, 100.0), resets_at })
     };
-    let mut reading = Reading::empty("claude", NAME);
-    reading.windows.extend(window("five_hour", Period::FiveHour, "5 小時"));
-    reading.windows.extend(window("seven_day", Period::Week, "每週（全部模型）"));
+    let mut out = Vec::new();
+    out.extend(window("five_hour", Period::FiveHour, "5 小時"));
+    out.extend(window("seven_day", Period::Week, "每週（全部模型）"));
     for (key, label) in [("seven_day_opus", "每週 · Opus"), ("seven_day_sonnet", "每週 · Sonnet")] {
-        reading.windows.extend(window(key, Period::Other, label));
+        out.extend(window(key, Period::Other, label));
     }
-    if reading.windows.is_empty() {
-        reading.notice = Some("Claude Code 回傳了無法辨識的額度資料".into());
-        return reading;
-    }
-    reading.ok = true;
-    reading.plan = payload["subscription_type"].as_str().map(str::to_owned);
-    reading
+    out
 }
 
 #[cfg(test)]

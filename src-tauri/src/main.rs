@@ -1,10 +1,11 @@
 // No console window in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod accounts;
 mod platform;
 mod state;
 
-use dwbar_core::{config::Config, log, quota};
+use dwbar_core::{config::Config, log};
 use state::{AppState, Snapshot};
 use std::{sync::mpsc, time::Duration};
 use tauri::{
@@ -70,7 +71,7 @@ fn open_settings(app: &AppHandle, page: Option<&str>) {
     }
 }
 
-fn broadcast(app: &AppHandle) {
+pub fn broadcast(app: &AppHandle) {
     let snap = app.state::<AppState>().inner.lock().unwrap().snapshot();
     let _ = app.emit("state", &snap);
 }
@@ -91,7 +92,7 @@ fn start_quota_thread(app: &AppHandle) {
                 s.config.clone()
             };
             broadcast(&app);
-            let readings = quota::read_all(&config);
+            let readings = accounts::read_all(&app);
             {
                 let state = app.state::<AppState>();
                 let mut s = state.inner.lock().unwrap();
@@ -110,7 +111,7 @@ fn start_quota_thread(app: &AppHandle) {
         .ok();
 }
 
-fn request_refresh(app: &AppHandle) {
+pub fn request_refresh(app: &AppHandle) {
     if let Some(tx) = app.state::<AppState>().refresh_now.lock().unwrap().as_ref() {
         let _ = tx.send(());
     }
@@ -194,10 +195,12 @@ fn get_state(app: AppHandle) -> Snapshot {
 #[tauri::command]
 fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
     config.clamp();
-    config.save().map_err(|e| format!("無法儲存設定：{e}"))?;
     let (agents_changed, autostart) = {
         let state = app.state::<AppState>();
         let mut s = state.inner.lock().unwrap();
+        // Linking is owned by the sign-in flow; a settings page with an older copy must not undo it.
+        config.claude.connected = s.config.claude.connected;
+        config.codex.connected = s.config.codex.connected;
         let changed = s.config.claude != config.claude
             || s.config.codex != config.codex
             || s.config.refresh_minutes != config.refresh_minutes;
@@ -205,6 +208,8 @@ fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
         s.config = config;
         (changed, autostart)
     };
+    let to_save = app.state::<AppState>().inner.lock().unwrap().config.clone();
+    to_save.save().map_err(|e| format!("無法儲存設定：{e}"))?;
     if let Some(on) = autostart {
         let launcher = app.autolaunch();
         let result = if on { launcher.enable() } else { launcher.disable() };
@@ -251,6 +256,25 @@ fn read_log(lines: Option<usize>) -> Vec<String> {
 }
 
 #[tauri::command]
+fn connect_account(app: AppHandle, agent: String) {
+    accounts::open_login(&app, &agent);
+}
+
+#[tauri::command]
+fn disconnect_account(app: AppHandle, agent: String) {
+    accounts::unlink(&app, &agent);
+    request_refresh(&app);
+    broadcast(&app);
+}
+
+#[tauri::command]
+fn clear_accounts(app: AppHandle) {
+    accounts::clear_sessions(&app);
+    request_refresh(&app);
+    broadcast(&app);
+}
+
+#[tauri::command]
 fn quit(app: AppHandle) {
     quit_app(app);
 }
@@ -279,6 +303,9 @@ fn main() {
             capsule_resize,
             show_settings,
             read_log,
+            connect_account,
+            disconnect_account,
+            clear_accounts,
             quit
         ])
         .setup(|app| {

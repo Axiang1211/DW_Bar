@@ -6,6 +6,7 @@
 //! * [`win`]     – Win32: taskbar lookup, embedding, fullscreen detection, watcher thread
 //! * [`log`]     – tiny rotating diagnostics log
 
+pub mod apps;
 pub mod config;
 pub mod layout;
 pub mod locate;

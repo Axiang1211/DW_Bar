@@ -9,11 +9,11 @@
 mod claude;
 mod codex;
 mod engine;
+pub mod web;
 
 pub use claude::parse_usage as parse_claude;
 pub use codex::parse_limits as parse_codex;
 
-use crate::config::Config;
 use serde::Serialize;
 
 /// Which period a window covers, so the capsule knows which ring to draw.
@@ -43,8 +43,16 @@ pub struct Reading {
     /// `"claude"` or `"codex"`.
     pub agent: String,
     pub name: String,
-    /// CLI found on this machine.
+    /// Shown on the taskbar: a desktop app, CLI or linked account was found.
     pub installed: bool,
+    /// Where the numbers came from: `"account"` (signed in inside DW Bar) or `"cli"`.
+    pub source: Option<String>,
+    /// The CLI (or an engine bundled in a desktop app) was found.
+    pub cli: bool,
+    /// The vendor's desktop app is installed.
+    pub app: bool,
+    /// An account is linked inside DW Bar.
+    pub connected: bool,
     pub ok: bool,
     pub plan: Option<String>,
     pub account: Option<String>,
@@ -63,6 +71,10 @@ impl Reading {
             agent: agent.into(),
             name: name.into(),
             installed: true,
+            source: None,
+            cli: false,
+            app: false,
+            connected: false,
             ok: false,
             plan: None,
             account: None,
@@ -72,13 +84,13 @@ impl Reading {
             updated: crate::now(),
         }
     }
-    pub(crate) fn failed(agent: &str, name: &str, notice: impl Into<String>) -> Self {
+    pub fn failed(agent: &str, name: &str, notice: impl Into<String>) -> Self {
         let mut r = Self::empty(agent, name);
         r.notice = Some(notice.into());
         r
     }
     pub(crate) fn missing(agent: &str, name: &str) -> Self {
-        let mut r = Self::failed(agent, name, "未偵測到此 AI 的命令列工具");
+        let mut r = Self::failed(agent, name, "尚未連結帳號");
         r.installed = false;
         r
     }
@@ -87,29 +99,32 @@ impl Reading {
     }
 }
 
-/// Read every enabled agent. Blocking (each read spawns a CLI and can take seconds),
-/// so call it from a background thread. Agents are read in parallel.
-pub fn read_all(config: &Config) -> Vec<Reading> {
-    let mut jobs = Vec::new();
-    if config.claude.enabled {
-        let custom = config.claude.custom_path.clone();
-        jobs.push(std::thread::spawn(move || claude::read(custom.as_deref())));
+/// Read one agent through its CLI (or an engine bundled in its desktop app).
+/// Blocking: spawns a process and can take seconds, so call it off the UI thread.
+pub fn read_cli(agent: &str, custom_path: Option<&str>) -> Reading {
+    let r = match agent {
+        "claude" => claude::read(custom_path),
+        "codex" => codex::read(custom_path),
+        other => Reading::failed(other, other, "未知的 AI"),
+    };
+    log_reading(&r);
+    r
+}
+
+pub fn log_reading(r: &Reading) {
+    if let Some(n) = &r.notice {
+        crate::log!("quota", "{} ({}): {}", r.agent, r.source.as_deref().unwrap_or("-"), n);
+    } else {
+        let w = |p| r.window(p).map(|w| format!("{:.0}%", w.used_percent)).unwrap_or("-".into());
+        crate::log!(
+            "quota",
+            "{} ({}): used 5h {} / week {}",
+            r.agent,
+            r.source.as_deref().unwrap_or("-"),
+            w(Period::FiveHour),
+            w(Period::Week)
+        );
     }
-    if config.codex.enabled {
-        let custom = config.codex.custom_path.clone();
-        jobs.push(std::thread::spawn(move || codex::read(custom.as_deref())));
-    }
-    jobs.into_iter()
-        .filter_map(|job| job.join().ok())
-        .inspect(|r| {
-            if let Some(n) = &r.notice {
-                crate::log!("quota", "{}: {}", r.agent, n);
-            } else {
-                let w = |p| r.window(p).map(|w| format!("{:.0}%", w.used_percent)).unwrap_or("-".into());
-                crate::log!("quota", "{}: 5h {} / week {}", r.agent, w(Period::FiveHour), w(Period::Week));
-            }
-        })
-        .collect()
 }
 
 /// Classify a window by its length in minutes.

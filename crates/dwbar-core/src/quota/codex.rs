@@ -3,7 +3,7 @@ use super::{engine::Engine, period_for_minutes, Period, Reading, Window};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
-const NAME: &str = "Codex";
+pub(crate) const NAME: &str = "Codex";
 
 pub fn read(custom: Option<&str>) -> Reading {
     let Some(exe) = crate::locate::find("codex", custom) else {
@@ -57,6 +57,7 @@ pub fn read(custom: Option<&str>) -> Reading {
     match (limits, refused) {
         (Some(l), _) => {
             let mut r = parse_limits(&l);
+            r.source = Some("cli".into());
             r.account = account["email"].as_str().map(str::to_owned);
             if r.plan.is_none() {
                 r.plan = account["planType"].as_str().map(str::to_owned);

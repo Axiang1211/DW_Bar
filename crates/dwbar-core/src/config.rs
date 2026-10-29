@@ -40,13 +40,15 @@ pub enum Theme {
 #[serde(default)]
 pub struct AgentConfig {
     pub enabled: bool,
+    /// The user linked an account inside DW Bar (claude.ai / chatgpt.com).
+    pub connected: bool,
     /// Full path to the CLI when it is not on PATH (`claude.exe`, `codex.cmd`, …).
     pub custom_path: Option<String>,
 }
 
 impl Default for AgentConfig {
     fn default() -> Self {
-        Self { enabled: true, custom_path: None }
+        Self { enabled: true, connected: false, custom_path: None }
     }
 }
 

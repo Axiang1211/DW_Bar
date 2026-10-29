@@ -4,7 +4,7 @@
 
 外圈上半弧是 **5 小時額度**，內圈是 **每週額度**，綠／黃／紅代表剩多少。滑鼠停在圖示上看詳細，點一下開設定。
 
-> 目前是 **MVP 骨架（v0.1）**：工作列嵌入與定位、Claude Code／Codex 額度、設定視窗、全螢幕自動隱藏。
+> 目前版本 **v0.2**：工作列嵌入與定位、Claude／Codex 額度、在 DW Bar 內連結帳號、設定視窗、全螢幕自動隱藏。
 
 ## 下載安裝（不用裝任何開發工具）
 
@@ -13,11 +13,23 @@
 1. 打開本專案的 **Actions** 分頁
 2. 點最上面一筆綠色勾勾的 **Build**
 3. 往下捲到 **Artifacts**，下載 **DW-Bar-Windows**（zip）
-4. 解壓縮，執行 `DW Bar_0.1.0_x64-setup.exe`（或 `.msi`）
+4. 解壓縮，執行 `DW Bar_0.2.0_x64-setup.exe`（或 `.msi`）
+5. 打開設定 →「AI 帳號」→ 按「連結 Claude 帳號」或「連結 ChatGPT 帳號」，在跳出的官方登入頁登入
+
+不需要安裝任何命令列工具。
 
 第一次執行，Windows SmartScreen 可能會提示「無法辨識的應用程式」，因為安裝檔還沒有數位簽章：按「其他資訊 → 仍要執行」。
 
-## 功能（v0.1）
+## 額度從哪裡來
+
+每個 AI 依序嘗試：
+
+1. **在 DW Bar 內連結的帳號**：登入在官方網站（claude.ai、chatgpt.com）上完成，Google／Apple／Microsoft 登入都可以；DW Bar 不會看到密碼，登入狀態只存在這台電腦的 DW Bar 裡。之後由隱藏視窗在同一個網站上讀取官方網頁版自己使用的用量資料。
+2. **命令列工具或桌面 App 內建的引擎**：有裝 `claude`／`codex`，或 Claude、ChatGPT／Codex 桌面 App 內附的引擎時自動使用。
+
+官網的用量資料不是公開 API，網站改版時可能需要更新 DW Bar。
+
+## 功能
 
 | 項目 | 說明 |
 |---|---|
@@ -25,11 +37,12 @@
 | 定位規則 | 自動：工作列置中 → 最左邊（同 Windows 小工具，並讓出小工具的位置）；靠左 → 系統匣左側。可微調像素。 |
 | Explorer 重啟 | 監聽 `TaskbarCreated`，膠囊自動重建。開機 2.5 秒後再對位一次。 |
 | 全螢幕隱藏 | `SHQueryUserNotificationState` ＋ 前景視窗蓋滿螢幕判斷，300 ms 防抖。 |
-| Claude Code 額度 | 透過 `claude` 自己的 `get_usage`，不讀取任何 token 或 cookie。 |
-| Codex 額度 | 透過 `codex app-server` 的 `account/rateLimits/read`。 |
-| 設定視窗 | 用量、位置、外觀、AI 偵測（含自訂路徑）、一般（開機啟動、更新頻率）、診斷（紀錄與狀態）。 |
+| Claude 額度 | 連結的 claude.ai 帳號，或 `claude` 的 `get_usage`。 |
+| Codex 額度 | 連結的 ChatGPT 帳號，或 `codex app-server` 的 `account/rateLimits/read`。 |
+| 桌面 App 偵測 | 偵測 Claude、ChatGPT、Codex 桌面 App（含 Microsoft Store 版）。 |
+| 設定視窗 | 用量、位置、外觀、AI 帳號、一般（開機啟動、更新頻率）、診斷（紀錄與狀態）。 |
 
-偵測不到的 AI 不會出現在工作列。設定存在 `%LOCALAPPDATA%\DWBar\config.json`，紀錄在 `%LOCALAPPDATA%\DWBar\logs\`。
+沒有桌面 App、命令列工具，也沒有連結帳號的 AI 不會出現在工作列。設定存在 `%LOCALAPPDATA%\DWBar\config.json`，紀錄在 `%LOCALAPPDATA%\DWBar\logs\`。
 
 ## 自己編譯（選用）
 
@@ -50,9 +63,10 @@ npm run tauri build
 ```
 crates/dwbar-core/     不依賴 WebView 的核心（可在任何系統跑單元測試）
   src/layout.rs        膠囊位置計算（純函式）
-  src/quota/           Claude Code、Codex 額度讀取
+  src/quota/           額度讀取（命令列、帳號用量解析）
+  src/apps.rs          桌面 App 與內建引擎偵測
   src/win/             Win32：找工作列、嵌入、全螢幕偵測、監看執行緒
-src-tauri/             Tauri v2 外殼：視窗、系統匣圖示、指令
+src-tauri/             Tauri v2 外殼：視窗、系統匣圖示、指令、帳號登入（accounts.rs）
 index.html             工作列膠囊
 settings.html          設定視窗
 .github/workflows/     GitHub Actions：Windows 打包

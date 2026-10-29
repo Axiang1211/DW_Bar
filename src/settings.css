@@ -244,3 +244,19 @@ select, .path {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* accounts */
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.06); border-color: var(--accent); }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.acts.col { flex-direction: column; align-items: flex-end; margin-top: 0; gap: 10px; flex: none; }
+.row.agent { align-items: flex-start; }
+.row.agent .lbl { gap: 3px; }
+.acct { color: var(--fg) !important; font-size: 13px !important; display: flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3); display: inline-block; flex: none; }
+.dot.ok { background: var(--ok); }
+details { margin-top: 6px; font-size: 12.5px; color: var(--fg-2); }
+details summary { cursor: pointer; width: max-content; }
+.card.welcome b { font-size: 16px; }
+.card.welcome p { color: var(--fg-2); margin: 6px 0 0; }
+.meta .src { margin-left: auto; color: var(--fg-3); }

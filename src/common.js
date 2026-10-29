@@ -9,8 +9,8 @@ export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
 /** Short names and monograms. Original letterforms – no vendor logos are drawn. */
 export const AGENTS = {
-  claude: { name: "Claude Code", mono: "C" },
-  codex: { name: "Codex", mono: "X" },
+  claude: { name: "Claude", mono: "C", account: "Claude 帳號", site: "claude.ai" },
+  codex: { name: "Codex", mono: "X", account: "ChatGPT 帳號", site: "chatgpt.com，讀取 Codex 額度" },
   dw: { name: "DW Bar", mono: "DW" },
 };
 

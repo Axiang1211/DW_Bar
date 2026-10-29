@@ -10,11 +10,11 @@ function render(state) {
 
   if (!shown.length) {
     // Nothing detected yet: one brand ring that opens AI detection settings.
-    const b = item("dw", null, state.refreshing ? "正在偵測 AI…" : "DW Bar：尚未偵測到 AI，點一下開啟設定", "agents");
+    const b = item("dw", null, state.refreshing && !state.quotas.length ? "正在偵測 AI…" : "DW Bar：點一下連結你的 AI 帳號", "agents");
     cap.append(b);
   } else {
     for (const q of shown) {
-      const el = item(q.agent, q, tooltip(q), "usage");
+      const el = item(q.agent, q, tooltip(q), q.ok ? "usage" : "agents");
       if (!q.ok) el.classList.add("off");
       if (state.config.show_percent && q.ok) {
         const r = left(win(q, "five_hour")) ?? left(win(q, "week"));
