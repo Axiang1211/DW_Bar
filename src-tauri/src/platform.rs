@@ -188,3 +188,49 @@ pub fn hide_tip(app: &AppHandle) {
     #[cfg(not(any(windows, feature = "lint-win")))]
     let _ = win.hide();
 }
+
+/// Show the usage panel (`w` × `h` logical px) next to the capsule, focused so it
+/// closes itself when the user clicks elsewhere. Runs on the UI thread.
+pub fn show_panel(app: &AppHandle, w_logical: f64, h_logical: f64) {
+    let Some(win) = app.get_webview_window(crate::PANEL) else { return };
+    let state = app.state::<AppState>();
+    let (placement, position) = {
+        let s = state.inner.lock().unwrap();
+        (s.placement.clone(), s.config.position)
+    };
+    let Some(anchor) = placement.capsule else { return };
+    let scale = if placement.scale > 0.0 { placement.scale } else { 1.0 };
+    let (w, h) = ((w_logical * scale).round() as i32, (h_logical * scale).round() as i32);
+
+    #[cfg(any(windows, feature = "lint-win"))]
+    {
+        use dwbar_core::{config::Position, layout, win::{embed, taskbar}};
+        let Some(hwnd) = hwnd_of(&win) else { return };
+        let screen = taskbar::primary()
+            .and_then(taskbar::monitor_area)
+            .or(placement.taskbar)
+            .unwrap_or(layout::Rect::new(0, 0, 1920, 1080));
+        let side = match position {
+            Position::Left => layout::TipSide::Right,
+            Position::Right => layout::TipSide::Left,
+            _ => layout::TipSide::Auto,
+        };
+        let gap = (10.0 * scale).round() as i32;
+        let rect = layout::place_tip(&anchor, &screen, side, gap, w, h);
+        embed::place(hwnd, rect, None);
+    }
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    {
+        let _ = position;
+        let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
+        let _ = win.set_position(tauri::PhysicalPosition::new(anchor.left, anchor.top - h - 10));
+    }
+    let _ = win.show();
+    let _ = win.set_focus();
+}
+
+pub fn hide_panel(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window(crate::PANEL) {
+        let _ = win.hide();
+    }
+}

@@ -4,7 +4,7 @@
 
 外圈上半弧是 **5 小時額度**，內圈是 **每週額度**，綠／黃／紅代表剩多少。滑鼠移到圖示上會跳出用量小卡（5 小時、每週、餘額），點一下開設定。
 
-> 目前版本 **v0.4**：九宮格位置（工作列或懸浮膠囊）；支援 Claude、Codex（ChatGPT）、Gemini、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
+> 目前版本 **v0.5**：各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
 
 ## 下載安裝（不用裝任何開發工具）
 
@@ -13,7 +13,7 @@
 1. 打開本專案的 **Actions** 分頁
 2. 點最上面一筆綠色勾勾的 **Build**
 3. 往下捲到 **Artifacts**，下載 **DW-Bar-Windows**（zip）
-4. 解壓縮，執行 `DW Bar_0.4.1_x64-setup.exe`（或 `.msi`）
+4. 解壓縮，執行 `DW Bar_0.5.0_x64-setup.exe`（或 `.msi`）
 5. 打開設定 →「AI 帳號」→ 按想要的 AI 的「連結」按鈕，在跳出的官方登入頁登入
 
 不需要安裝任何命令列工具。
@@ -32,6 +32,7 @@
 | Claude | claude.ai | 5 小時、每週 |
 | Codex | chatgpt.com | 5 小時、每週（Codex 額度） |
 | Gemini | gemini.google.com | 5 小時、每週 |
+| Antigravity | 不需登入：打開 Antigravity 時讀取它本機的額度服務 | 各模型群組的 5 小時、每週 |
 | Cursor | cursor.com | 本期方案額度、按量餘額 |
 | Windsurf | windsurf.com | 每日、每週 |
 | DeepSeek（DSH） | platform.deepseek.com | API 餘額 |
@@ -50,6 +51,8 @@
 | Claude 額度 | 連結的 claude.ai 帳號，或 `claude` 的 `get_usage`。 |
 | Codex 額度 | 連結的 ChatGPT 帳號，或 `codex app-server` 的 `account/rateLimits/read`。 |
 | 桌面 App 偵測 | 掃描程式資料夾、Microsoft Store 套件與開始功能表捷徑（也包含從 Chrome／Edge 安裝的網頁 App）。 |
+| 圖示 | 圈圈中間顯示各家官方圖示（執行時從官網載入，不隨 DW Bar 散布），風格：極簡線條、賽博霓虹、毛玻璃、像素風、原色。 |
+| 用量面板 | 點圈圈開啟：每個 AI 一張卡片，大圈＋剩餘百分比、每週、重置時間、餘額；可立即更新、連結帳號。 |
 | 設定視窗 | 用量、位置、外觀、AI 帳號、一般（開機啟動、更新頻率）、診斷（紀錄與狀態）。 |
 
 沒有桌面 App、命令列工具，也沒有連結帳號的 AI 不會出現在工作列。設定存在 `%LOCALAPPDATA%\DWBar\config.json`，紀錄在 `%LOCALAPPDATA%\DWBar\logs\`。

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DW Bar</title>
+    <link rel="stylesheet" href="/src/panel.css" />
+    <link rel="stylesheet" href="/src/ring.css" />
+  </head>
+  <body>
+    <div class="wrap" id="wrap">
+      <section class="panel" id="panel" aria-label="AI 用量面板">
+        <header class="fly-head">
+          <div class="fly-brand"><span class="ring" id="brand"></span><div><b>DW Bar</b><small id="sub"></small></div></div>
+          <div class="fly-tools">
+            <button class="icon-btn" id="refresh" title="立即更新" aria-label="立即更新">
+              <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" /></svg>
+            </button>
+            <button class="icon-btn" id="settings" title="設定" aria-label="設定">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>
+            </button>
+            <button class="icon-btn" id="close" title="關閉" aria-label="關閉">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+        </header>
+        <div class="cards" id="cards"></div>
+        <footer class="fly-foot"><button class="link" id="accounts">管理 AI 帳號</button><span id="foot"></span></footer>
+      </section>
+    </div>
+    <script type="module" src="/src/panel.js"></script>
+  </body>
+</html>

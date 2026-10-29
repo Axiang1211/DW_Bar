@@ -18,6 +18,7 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 pub const CAPSULE: &str = "capsule";
 pub const SETTINGS: &str = "settings";
 pub const TIP: &str = "tip";
+pub const PANEL: &str = "panel";
 
 // ───────────────────────── windows ─────────────────────────
 
@@ -90,6 +91,27 @@ fn create_tip(app: &AppHandle) {
                 let _ = app.run_on_main_thread(move || platform::prepare(&win));
             }
             Err(e) => log::write("app", &format!("tip window failed: {e}")),
+        }
+    });
+}
+
+/// The usage panel that opens when a ring is clicked (the prototype's flyout).
+fn create_panel(app: &AppHandle) {
+    let app = app.clone();
+    off_ui_thread(move || {
+        let built = WebviewWindowBuilder::new(&app, PANEL, WebviewUrl::App("panel.html".into()))
+            .title("DW Bar")
+            .decorations(false)
+            .transparent(true)
+            .shadow(false)
+            .skip_taskbar(true)
+            .resizable(false)
+            .visible(false)
+            .always_on_top(true)
+            .inner_size(400.0, 520.0)
+            .build();
+        if let Err(e) = built {
+            log::write("app", &format!("panel window failed: {e}"));
         }
     });
 }
@@ -324,6 +346,42 @@ async fn tip_resize(app: AppHandle, width: f64, height: f64) {
     let _ = app.run_on_main_thread(move || platform::show_tip(&app2, width, height));
 }
 
+/// A ring was clicked: open the panel (focused on `agent`), or close it if it is open.
+static PANEL_HIDDEN_AT: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+#[tauri::command]
+async fn open_panel(app: AppHandle, agent: Option<String>) {
+    // Clicking the ring while the panel is open closes it. The click first blurs the
+    // panel (which hides it), so a hide in the last moment also counts as "was open".
+    let just_hidden = PANEL_HIDDEN_AT
+        .lock()
+        .unwrap()
+        .is_some_and(|t| t.elapsed() < std::time::Duration::from_millis(350));
+    let visible = app.get_webview_window(PANEL).is_some_and(|w| w.is_visible().unwrap_or(false));
+    if visible || just_hidden {
+        let _ = app.emit_to(PANEL, "panel-close", ());
+        let app2 = app.clone();
+        let _ = app.run_on_main_thread(move || platform::hide_panel(&app2));
+        return;
+    }
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || platform::hide_tip(&app2));
+    let _ = app.emit_to(PANEL, "panel-open", agent);
+}
+
+#[tauri::command]
+async fn panel_resize(app: AppHandle, width: f64, height: f64) {
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || platform::show_panel(&app2, width, height));
+}
+
+#[tauri::command]
+async fn hide_panel(app: AppHandle) {
+    *PANEL_HIDDEN_AT.lock().unwrap() = Some(std::time::Instant::now());
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || platform::hide_panel(&app2));
+}
+
 #[tauri::command]
 async fn hide_tip(app: AppHandle) {
     app.state::<AppState>().inner.lock().unwrap().tip_anchor = None;
@@ -422,6 +480,9 @@ fn main() {
             show_tip,
             tip_resize,
             hide_tip,
+            open_panel,
+            panel_resize,
+            hide_panel,
             clear_accounts,
             quit
         ])
@@ -432,6 +493,7 @@ fn main() {
             }
             create_capsule(&handle);
             create_tip(&handle);
+            create_panel(&handle);
             start_watcher(&handle);
             start_quota_thread(&handle);
             Ok(())

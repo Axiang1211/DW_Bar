@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme } from "./common.js";
+import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme, applyIconStyle } from "./common.js";
 
 const cap = $("#cap");
 let lastSize = "";
@@ -27,6 +27,7 @@ function mostUrgent(list) {
 function render(state) {
   last = state;
   applyTheme(state.config.theme);
+  applyIconStyle(state.config.icon_style);
   const pos = state.config.position || "taskbar";
   const vertical = pos === "l" || pos === "r";
   const corner = CORNERS.includes(pos);
@@ -69,7 +70,7 @@ function render(state) {
           armCollapse();
           render(state);
         } else {
-          invoke("show_settings", { page: q.ok ? "usage" : "agents" });
+          invoke("open_panel", { agent: q.agent });
         }
       });
       cap.append(el);

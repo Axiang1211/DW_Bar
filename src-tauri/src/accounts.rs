@@ -39,6 +39,7 @@ fn display_name(agent: &str) -> &'static str {
         "cursor" => "Cursor",
         "windsurf" => "Windsurf",
         "deepseek" => "DeepSeek",
+        "antigravity" => "Antigravity",
         _ => "AI",
     }
 }
@@ -64,7 +65,7 @@ fn index(agent: &str) -> usize {
 
 // ───────────────────────── reading ─────────────────────────
 
-static BUSY: [Mutex<()>; 6] = [const { Mutex::new(()) }; 6];
+static BUSY: [Mutex<()>; 7] = [const { Mutex::new(()) }; 7];
 
 fn busy(service: &Service) -> &'static Mutex<()> {
     &BUSY[index(service.agent)]
@@ -163,6 +164,15 @@ pub fn read_agent(app: &AppHandle, agent: &str, detected: &Detected) -> Reading 
         }
     };
 
+    // Antigravity has no web sign-in: its open app answers locally.
+    if agent == "antigravity" {
+        let mut r = quota::antigravity::read();
+        quota::log_reading(&r);
+        r.app = app_installed;
+        r.installed = app_installed || r.ok;
+        return r;
+    }
+
     let mut reading = if cfg.connected {
         match web::service_for(agent) {
             Some(service) => match read_web(app, service) {
@@ -215,7 +225,7 @@ pub fn read_all(app: &AppHandle) -> Vec<Reading> {
 
 // ───────────────────────── linking ─────────────────────────
 
-static LINKING: [AtomicBool; 6] = [const { AtomicBool::new(false) }; 6];
+static LINKING: [AtomicBool; 7] = [const { AtomicBool::new(false) }; 7];
 
 fn linking(service: &Service) -> &'static AtomicBool {
     &LINKING[index(service.agent)]

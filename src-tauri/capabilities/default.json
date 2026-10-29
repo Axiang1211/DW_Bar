@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capsule and settings windows",
-  "windows": ["capsule", "settings", "tip"],
+  "windows": ["capsule", "settings", "tip", "panel"],
   "permissions": ["core:default"]
 }

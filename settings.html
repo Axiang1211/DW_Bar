@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DW Bar 設定</title>
     <link rel="stylesheet" href="/src/settings.css" />
+    <link rel="stylesheet" href="/src/ring.css" />
   </head>
   <body>
     <nav class="side" aria-label="設定分類">
@@ -78,10 +79,17 @@
             <div class="seg" data-key="theme"><button value="auto">跟隨系統</button><button value="dark">深色</button><button value="light">淺色</button></div>
           </div>
           <div class="row">
+            <div class="lbl"><b>圖示風格</b><span>圈圈中間顯示各家的官方圖示（從官網載入），可選擇不同風格。</span></div>
+            <div class="seg" data-key="icon_style">
+              <button value="mono">極簡線條</button><button value="neon">賽博霓虹</button><button value="acrylic">毛玻璃</button><button value="pixel">像素風</button><button value="color">原色</button>
+            </div>
+          </div>
+          <div class="row">
             <div class="lbl"><b>顯示百分比</b><span>在圖示旁顯示 5 小時額度剩餘 %。關閉時只顯示圖示，滑鼠停留可看詳細。</span></div>
             <label class="switch"><input type="checkbox" data-key="show_percent" /><i></i></label>
           </div>
         </div>
+        <div class="iconprev" id="iconPrev"></div>
         <div class="legend">
           <span class="ring big" id="legendRing"></span>
           <ul>

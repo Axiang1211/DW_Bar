@@ -14,6 +14,7 @@ export default defineConfig({
         capsule: resolve(import.meta.dirname, "index.html"),
         settings: resolve(import.meta.dirname, "settings.html"),
         tip: resolve(import.meta.dirname, "tip.html"),
+        panel: resolve(import.meta.dirname, "panel.html"),
       },
     },
   },

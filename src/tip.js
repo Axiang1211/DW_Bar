@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, level, applyTheme, resetText, untilText } from "./common.js";
+import { $, invoke, listen, left, level, applyTheme, resetText, untilText } from "./common.js";
 
 let state = null;
 let agent = null;
@@ -9,26 +9,31 @@ function render() {
   applyTheme(state.config.theme);
   const q = state.quotas.find((x) => x.agent === agent);
   if (!q) return;
-  const sub = [q.plan, q.account].filter(Boolean).join(" · ");
-  let body = "";
+  const pos = state.config.position || "taskbar";
+  const corner = ["tl", "tr", "bl", "br"].includes(pos);
+  // Same layout as the prototype's hover card: name + plan, one row per window, balance, hint.
+  const head = `<div class="tip-head"><b>${esc(q.name)}</b><small>${esc(q.plan || q.account || "")}</small></div>`;
+  let rows = "";
   if (q.ok) {
-    body = q.windows
+    rows = q.windows
       .map((w) => {
         const r = left(w);
         const long = w.period === "week" || w.period === "month";
-        const reset = w.resets_at ? `${resetText(w.resets_at)} 重置 · 還有 ${untilText(w.resets_at)}` : "";
-        return `<div class="row"><div class="top"><span>${esc(w.label)}</span><b>剩 ${Math.round(r)}%</b></div>
-          <div class="track"><div class="fill ${long ? "wk" : "lv-" + level(r)}" style="width:${r}%"></div></div>
-          <small>${reset}</small></div>`;
+        const when = w.resets_at ? `${untilText(w.resets_at)}後重置` : "";
+        const color = long ? "var(--weekly)" : `var(--${level(r)})`;
+        return `<div class="tip-row"><span>${esc(w.label)}</span><em>剩 ${Math.round(r)}%<small>${when}</small></em>
+          <span class="tip-bar"><i style="width:${r}%;background:${color}"></i></span></div>`;
       })
       .join("");
   } else {
-    body = `<div class="notice">${esc(q.notice || "沒有資料")}</div>`;
+    rows = `<div class="tip-row"><span>${esc(q.notice || "沒有資料")}</span></div>`;
   }
-  $("#card").innerHTML = `<div class="head"><span class="ring">${ringSVG(q.agent, q)}</span>
-      <div><b>${esc(q.name)}</b><span>${esc(sub)}</span></div></div>
-    ${body}
-    <div class="bal"><span>餘額</span><b>${esc(q.balance || "—")}</b></div>`;
+  rows += `<div class="tip-row"><span>餘額</span><em>${esc(q.balance || "—")}</em></div>`;
+  const next = q.windows?.filter((w) => w.resets_at).sort((a, b) => a.resets_at - b.resets_at)[0];
+  const foot = [next ? `下次重置 ${resetText(next.resets_at)}` : "", corner ? "點擊展開全部 AI" : "點擊開啟面板"]
+    .filter(Boolean)
+    .join(" · ");
+  $("#card").innerHTML = `${head}<div class="tip-rows">${rows}</div><div class="tip-foot">${foot}</div>`;
   requestAnimationFrame(() => {
     const wrap = $("#wrap");
     invoke("tip_resize", { width: Math.ceil(wrap.offsetWidth), height: Math.ceil(wrap.offsetHeight) });

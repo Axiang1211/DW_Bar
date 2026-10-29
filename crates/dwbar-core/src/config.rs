@@ -104,6 +104,8 @@ pub struct Config {
     pub theme: Theme,
     /// Show "%" next to rings. Off = icon only, as in the prototype.
     pub show_percent: bool,
+    /// Logo style inside the rings: mono / neon / acrylic / pixel / color.
+    pub icon_style: String,
     /// Hide while a fullscreen app, game or presentation is in front.
     pub hide_fullscreen: bool,
     /// Minutes between quota refreshes (clamped 2..=60).
@@ -115,13 +117,14 @@ pub struct Config {
     pub cursor: AgentConfig,
     pub windsurf: AgentConfig,
     pub deepseek: AgentConfig,
+    pub antigravity: AgentConfig,
 }
 
 /// Current settings format (bumped when a one-time migration is needed).
 pub const CONFIG_VERSION: u32 = 1;
 
 /// Every AI DW Bar knows, in display order.
-pub const AGENTS: [&str; 6] = ["claude", "codex", "gemini", "cursor", "windsurf", "deepseek"];
+pub const AGENTS: [&str; 7] = ["claude", "codex", "gemini", "antigravity", "cursor", "windsurf", "deepseek"];
 
 impl Default for Config {
     fn default() -> Self {
@@ -133,6 +136,7 @@ impl Default for Config {
             offset_x: 0,
             theme: Theme::Auto,
             show_percent: false,
+            icon_style: "mono".into(),
             hide_fullscreen: true,
             refresh_minutes: 5,
             autostart: false,
@@ -142,6 +146,7 @@ impl Default for Config {
             cursor: AgentConfig::default(),
             windsurf: AgentConfig::default(),
             deepseek: AgentConfig::default(),
+            antigravity: AgentConfig::default(),
         }
     }
 }
@@ -184,6 +189,7 @@ impl Config {
             "gemini" => &self.gemini,
             "cursor" => &self.cursor,
             "windsurf" => &self.windsurf,
+            "antigravity" => &self.antigravity,
             _ => &self.deepseek,
         }
     }
@@ -195,6 +201,7 @@ impl Config {
             "gemini" => &mut self.gemini,
             "cursor" => &mut self.cursor,
             "windsurf" => &mut self.windsurf,
+            "antigravity" => &mut self.antigravity,
             _ => &mut self.deepseek,
         }
     }

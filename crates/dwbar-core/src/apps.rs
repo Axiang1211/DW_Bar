@@ -37,10 +37,11 @@ fn names_in(dir: &Path, depth: usize, out: &mut Vec<String>) {
 }
 
 /// Words that identify each AI's app in folder / shortcut names.
-const NEEDLES: [(&str, &[&str]); 6] = [
+const NEEDLES: [(&str, &[&str]); 7] = [
     ("claude", &["claude", "anthropic"]),
     ("codex", &["chatgpt", "codex", "openai.chatgpt"]),
     ("gemini", &["gemini"]),
+    ("antigravity", &["antigravity"]),
     ("cursor", &["cursor"]),
     ("windsurf", &["windsurf"]),
     ("deepseek", &["deepseek"]),

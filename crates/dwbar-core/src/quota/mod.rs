@@ -6,6 +6,7 @@
 //!
 //! The approach follows Agent HUD Open (Apache-2.0, jazzenchen/agent-hud-open);
 //! the code here is an independent, much smaller implementation.
+pub mod antigravity;
 mod claude;
 mod codex;
 mod engine;

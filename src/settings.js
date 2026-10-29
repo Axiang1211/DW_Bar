@@ -1,5 +1,5 @@
 import {
-  $, $$, invoke, listen, ringSVG, left, win, level, applyTheme, resetText, untilText, AGENTS,
+  $, $$, invoke, listen, ringSVG, left, win, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS,
 } from "./common.js";
 
 let state = null;
@@ -27,6 +27,7 @@ let saveTimer = 0;
 function save(patch) {
   Object.assign(config, patch);
   applyTheme(config.theme);
+  applyIconStyle(config.icon_style);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     saveTimer = 0;
@@ -176,7 +177,7 @@ function renderUsage() {
       : `<article class="card welcome">
           <b>連結你的 AI 帳號</b>
           <p>登入後，工作列就會顯示 5 小時與每週額度。登入是在官方網站上完成，DW Bar 不會看到你的密碼。</p>
-          <div class="acts">${Object.keys(AGENTS).filter((id) => id !== "dw").map((id, i) => connectButton(id, i === 0)).join("")}</div>
+          <div class="acts">${Object.keys(AGENTS).filter((id) => id !== "dw" && !AGENTS[id].local).map((id, i) => connectButton(id, i === 0)).join("")}</div>
         </article>`;
     return;
   }
@@ -248,7 +249,12 @@ function renderAgents() {
     const path = $(".path", row);
     if (document.activeElement !== path) path.value = c.custom_path || "";
     const acct = $(".acct", row);
-    if (c.connected) {
+    if (a.local) {
+      acct.innerHTML = q?.ok
+        ? `<i class="dot ok"></i>正在讀取 Antigravity${q.account ? `（${escapeHtml(q.account)}）` : ""}`
+        : `<i class="dot"></i>${escapeHtml(a.site)}`;
+      $(".link-btn", row).innerHTML = "";
+    } else if (c.connected) {
       acct.innerHTML = `<i class="dot ok"></i>已連結 ${escapeHtml(a.account)}${q?.account ? `（${escapeHtml(q.account)}）` : ""}`;
       $(".link-btn", row).innerHTML = `<button class="btn" data-disconnect="${id}">中斷連結</button>`;
     } else {
@@ -309,13 +315,26 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
+function renderIconPreview() {
+  const box = $("#iconPrev");
+  if (box.dataset.built === "1") return;
+  const demo = (used5, usedW) => ({ ok: true, windows: [{ period: "five_hour", used_percent: used5 }, { period: "week", used_percent: usedW }] });
+  box.innerHTML = Object.keys(AGENTS)
+    .filter((id) => id !== "dw")
+    .map((id, i) => `<figure><span class="ring">${ringSVG(id, demo((i * 23) % 90, (i * 37) % 80))}</span><figcaption>${AGENTS[id].name}</figcaption></figure>`)
+    .join("");
+  box.dataset.built = "1";
+}
+
 function renderAll() {
   config = structuredClone(state.config);
   applyTheme(config.theme);
+  applyIconStyle(config.icon_style);
   $("#ver").textContent = "v" + state.version;
   syncControls();
   renderUsage();
   renderAgents();
+  renderIconPreview();
   renderDiag();
 }
 
