@@ -4,5 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "echo \"static site, nothing to build\""
+  },
+  "devDependencies": {
+    "wrangler": "4.155.0"
   }
 }
