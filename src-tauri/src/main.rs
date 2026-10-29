@@ -20,10 +20,28 @@ pub const SETTINGS: &str = "settings";
 
 // ───────────────────────── windows ─────────────────────────
 
+/// On Windows, building a window on the UI thread from inside a command or an event
+/// handler deadlocks the event loop (the window appears but stays blank). Every window
+/// is therefore built on a short-lived worker thread.
+pub fn off_ui_thread(f: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(f);
+}
+
+static CREATING_CAPSULE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn create_capsule(app: &AppHandle) {
-    if app.get_webview_window(CAPSULE).is_some() {
+    use std::sync::atomic::Ordering;
+    if app.get_webview_window(CAPSULE).is_some() || CREATING_CAPSULE.swap(true, Ordering::SeqCst) {
         return;
     }
+    let app = app.clone();
+    off_ui_thread(move || {
+        build_capsule(&app);
+        CREATING_CAPSULE.store(false, Ordering::SeqCst);
+    });
+}
+
+fn build_capsule(app: &AppHandle) {
     let width = app.state::<AppState>().inner.lock().unwrap().capsule_width;
     let built = WebviewWindowBuilder::new(app, CAPSULE, WebviewUrl::App("index.html".into()))
         .title("DW Bar")
@@ -38,8 +56,11 @@ fn create_capsule(app: &AppHandle) {
         .build();
     match built {
         Ok(win) => {
-            platform::prepare(&win);
-            platform::apply(app);
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                platform::prepare(&win);
+                platform::apply(&app2);
+            });
             log::write("app", "capsule window created");
         }
         Err(e) => log::write("app", &format!("capsule window failed: {e}")),
@@ -60,15 +81,18 @@ fn open_settings(app: &AppHandle, page: Option<&str>) {
         Some(p) => format!("settings.html#{p}"),
         None => "settings.html".into(),
     };
-    let built = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App(url.into()))
-        .title("DW Bar 設定")
-        .inner_size(820.0, 580.0)
-        .min_inner_size(640.0, 460.0)
-        .center()
-        .build();
-    if let Err(e) = built {
-        log::write("app", &format!("settings window failed: {e}"));
-    }
+    let app = app.clone();
+    off_ui_thread(move || {
+        let built = WebviewWindowBuilder::new(&app, SETTINGS, WebviewUrl::App(url.into()))
+            .title("DW Bar 設定")
+            .inner_size(820.0, 580.0)
+            .min_inner_size(640.0, 460.0)
+            .center()
+            .build();
+        if let Err(e) = built {
+            log::write("app", &format!("settings window failed: {e}"));
+        }
+    });
 }
 
 pub fn broadcast(app: &AppHandle) {
@@ -227,7 +251,7 @@ fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
 }
 
 #[tauri::command]
-fn refresh_quotas(app: AppHandle) {
+async fn refresh_quotas(app: AppHandle) {
     request_refresh(&app);
 }
 
@@ -246,7 +270,7 @@ fn capsule_resize(app: AppHandle, width: f64) {
 }
 
 #[tauri::command]
-fn show_settings(app: AppHandle, page: Option<String>) {
+async fn show_settings(app: AppHandle, page: Option<String>) {
     open_settings(&app, page.as_deref());
 }
 
@@ -256,19 +280,19 @@ fn read_log(lines: Option<usize>) -> Vec<String> {
 }
 
 #[tauri::command]
-fn connect_account(app: AppHandle, agent: String) {
+async fn connect_account(app: AppHandle, agent: String) {
     accounts::open_login(&app, &agent);
 }
 
 #[tauri::command]
-fn disconnect_account(app: AppHandle, agent: String) {
+async fn disconnect_account(app: AppHandle, agent: String) {
     accounts::unlink(&app, &agent);
     request_refresh(&app);
     broadcast(&app);
 }
 
 #[tauri::command]
-fn clear_accounts(app: AppHandle) {
+async fn clear_accounts(app: AppHandle) {
     accounts::clear_sessions(&app);
     request_refresh(&app);
     broadcast(&app);

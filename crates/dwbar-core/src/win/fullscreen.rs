@@ -11,7 +11,10 @@ use windows_sys::Win32::{
     System::Threading::GetCurrentProcessId,
     UI::{
         Shell::{SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN},
-        WindowsAndMessaging::{GetForegroundWindow, GetShellWindow, GetWindowThreadProcessId},
+        WindowsAndMessaging::{
+            GetForegroundWindow, GetShellWindow, GetWindowLongPtrW, GetWindowThreadProcessId,
+            IsWindowVisible, IsZoomed, GWL_STYLE, WS_CAPTION,
+        },
     },
 };
 
@@ -63,7 +66,14 @@ pub fn foreground_covers_monitor() -> bool {
         if pid == GetCurrentProcessId() {
             return false;
         }
-        if SHELL_CLASSES.contains(&class_name(fg).as_str()) {
+        if SHELL_CLASSES.contains(&class_name(fg).as_str()) || IsWindowVisible(h(fg)) == 0 {
+            return false;
+        }
+        // A maximized window with a title bar is not fullscreen, even when it covers the
+        // monitor (it does whenever the taskbar auto-hides). Real fullscreen – games,
+        // video, F11 – is borderless.
+        let style = GetWindowLongPtrW(h(fg), GWL_STYLE) as u32;
+        if IsZoomed(h(fg)) != 0 || style & WS_CAPTION == WS_CAPTION {
             return false;
         }
         match (window_rect(fg), monitor_rect(fg)) {

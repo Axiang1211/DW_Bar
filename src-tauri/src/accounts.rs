@@ -241,9 +241,14 @@ pub fn open_login(app: &AppHandle, agent: &str) {
         let _ = win.set_focus();
         return;
     }
+    let app = app.clone();
+    crate::off_ui_thread(move || build_login(&app, service, &label));
+}
+
+fn build_login(app: &AppHandle, service: Service, label: &str) {
     let built = WebviewWindowBuilder::new(
         app,
-        &label,
+        label,
         WebviewUrl::External(service.login_url.parse().expect("valid url")),
     )
     .title(format!("登入 {} · DW Bar", service.label))
