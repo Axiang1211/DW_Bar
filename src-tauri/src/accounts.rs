@@ -255,7 +255,7 @@ fn build_login(app: &AppHandle, service: Service, label: &str) {
         label,
         WebviewUrl::External(service.login_url.parse().expect("valid url")),
     )
-    .title(format!("登入 {} · DW Bar", service.label))
+    .title(format!("{} {} · DW Bar", crate::i18n::tr(&app.state::<crate::state::AppState>().inner.lock().unwrap().ui_lang, "登入"), service.label))
     .inner_size(500.0, 760.0)
     .center()
     // Google / Apple / Microsoft sign-in opens pop-ups; let them share this session.

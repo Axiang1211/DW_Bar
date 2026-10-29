@@ -84,11 +84,76 @@ jobs:
           if-no-files-found: error
           path: out/*
 
+      # The bare executable, for the MSIX packages (not published on its own).
+      - uses: actions/upload-artifact@v4
+        if: startsWith(matrix.artifact, 'win-')
+        with:
+          name: exe-${{ matrix.artifact }}
+          if-no-files-found: error
+          path: target/${{ matrix.target }}/release/dw-bar.exe
+
+  # Microsoft Store packages: one MSIX per architecture, bundled (unsigned; the Store signs
+  # it), plus a test-signed copy and its certificate for installing before the Store does.
+  msix:
+    name: MSIX (Microsoft Store)
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: exe-*
+          path: exe
+      - name: Package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version + ".0"
+          $sdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64" | Sort-Object Name -Descending | Select-Object -First 1
+          $makeappx = Join-Path $sdk.FullName "makeappx.exe"
+          $makepri = Join-Path $sdk.FullName "makepri.exe"
+          $signtool = Join-Path $sdk.FullName "signtool.exe"
+          New-Item -ItemType Directory -Force out, bundle | Out-Null
+          foreach ($arch in @("x64", "arm64")) {
+            $layout = "layout-$arch"
+            New-Item -ItemType Directory -Force $layout | Out-Null
+            Copy-Item "exe/exe-win-$arch/dw-bar.exe" $layout
+            Copy-Item -Recurse msix/Assets "$layout/Assets"
+            (Get-Content msix/AppxManifest.xml -Raw).Replace("__VERSION__", $version).Replace("__ARCH__", $arch) |
+              Set-Content "$layout/AppxManifest.xml" -Encoding utf8
+            & $makepri createconfig /cf "priconfig-$arch.xml" /dq en-US /pv 10.0.0 /o
+            & $makepri new /pr $layout /cf "priconfig-$arch.xml" /mn "$layout/AppxManifest.xml" /of "$layout/resources.pri" /o
+            if ($LASTEXITCODE) { throw "makepri failed" }
+            & $makeappx pack /d $layout /p "bundle/DW-Bar-$arch.msix" /o
+            if ($LASTEXITCODE) { throw "makeappx pack failed" }
+          }
+          & $makeappx bundle /d bundle /p out/DW-Bar.msixbundle /bv $version /o
+          if ($LASTEXITCODE) { throw "makeappx bundle failed" }
+
+          # Test copy: self-signed with the Store publisher name, so it installs side by side
+          # with nothing else changed. Trust DW-Bar-test.cer first (see the README).
+          $publisher = ([xml](Get-Content msix/AppxManifest.xml)).Package.Identity.Publisher
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher -KeyUsage DigitalSignature `
+            -FriendlyName "DW Bar test package" -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}") -NotAfter (Get-Date).AddYears(2)
+          $pw = ConvertTo-SecureString -String "dwbar-test" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath test.pfx -Password $pw | Out-Null
+          Export-Certificate -Cert $cert -FilePath out/DW-Bar-test.cer | Out-Null
+          Copy-Item out/DW-Bar.msixbundle out/DW-Bar-test.msixbundle
+          & $signtool sign /fd SHA256 /f test.pfx /p dwbar-test out/DW-Bar-test.msixbundle
+          if ($LASTEXITCODE) { throw "signtool failed" }
+          Get-ChildItem out | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DW-Bar-msix
+          if-no-files-found: error
+          path: out/*
+
   # A push to main publishes a release when the version in tauri.conf.json is new.
   # The website's /download streams releases/latest/download/<file>.
   release:
     name: Publish release
-    needs: build
+    needs: [build, msix]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -97,6 +162,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
+          pattern: DW-Bar-*
           path: out
           merge-multiple: true
       - name: Version

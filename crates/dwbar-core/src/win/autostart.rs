@@ -15,6 +15,61 @@ const APPROVED: &str = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Star
 /// Same value name the old plugin used (the product name), so it is overwritten.
 pub const NAME: &str = "DW Bar";
 
+/// Running from the Microsoft Store (MSIX) package. Packaged apps start at login through
+/// the manifest's StartupTask instead of the Run key (their registry writes are virtualized).
+pub fn packaged() -> bool {
+    use windows_sys::Win32::Storage::Packaging::Appx::GetCurrentPackageFullName;
+    let mut len: u32 = 0;
+    // ERROR_INSUFFICIENT_BUFFER (122) = has a package; APPMODEL_ERROR_NO_PACKAGE (15700) = not.
+    unsafe { GetCurrentPackageFullName(&mut len, std::ptr::null_mut()) == 122 }
+}
+
+#[cfg(windows)]
+mod store {
+    use windows::{
+        core::HSTRING,
+        ApplicationModel::{StartupTask, StartupTaskState},
+    };
+    const TASK: &str = "DWBarStartup";
+
+    fn task() -> windows::core::Result<StartupTask> {
+        StartupTask::GetAsync(&HSTRING::from(TASK))?.join()
+    }
+
+    /// Returns (enabled, blocked by the user / policy in Task Manager).
+    pub fn state() -> Option<(bool, bool)> {
+        let s = task().ok()?.State().ok()?;
+        Some((
+            s == StartupTaskState::Enabled || s == StartupTaskState::EnabledByPolicy,
+            s == StartupTaskState::DisabledByUser || s == StartupTaskState::DisabledByPolicy,
+        ))
+    }
+
+    pub fn set(enabled: bool) -> Result<(), String> {
+        let t = task().map_err(|e| format!("StartupTask: {e}"))?;
+        if enabled {
+            let s = t.RequestEnableAsync().and_then(|op| op.join()).map_err(|e| format!("StartupTask enable: {e}"))?;
+            if s != StartupTaskState::Enabled && s != StartupTaskState::EnabledByPolicy {
+                return Err(format!("StartupTask is {}", s.0));
+            }
+        } else {
+            t.Disable().map_err(|e| format!("StartupTask disable: {e}"))?;
+        }
+        Ok(())
+    }
+}
+
+/// `lint-win` on another OS: no WinRT, so the Store path is a stub.
+#[cfg(not(windows))]
+mod store {
+    pub fn state() -> Option<(bool, bool)> {
+        None
+    }
+    pub fn set(_enabled: bool) -> Result<(), String> {
+        Err("not Windows".into())
+    }
+}
+
 fn exe() -> Option<String> {
     std::env::current_exe().ok().map(|p| p.display().to_string())
 }
@@ -63,6 +118,11 @@ fn approve() {
 /// Turn start-at-login on or off. Turning it on from the settings also clears a
 /// Task Manager "disabled" mark, since the user just asked for it.
 pub fn set(enabled: bool) -> Result<(), String> {
+    if packaged() {
+        store::set(enabled)?;
+        crate::log!("autostart", "{} (StartupTask)", if enabled { "on" } else { "off" });
+        return Ok(());
+    }
     if !enabled {
         let (key, name) = (wide(RUN), wide(NAME));
         unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr()) };
@@ -80,6 +140,18 @@ pub fn set(enabled: bool) -> Result<(), String> {
 /// unquoted value and a moved install). Leaves the Task Manager switch alone.
 /// Returns true when start-at-login is on but blocked in Task Manager.
 pub fn sync(enabled: bool) -> bool {
+    if packaged() {
+        let Some((on, blocked)) = store::state() else { return false };
+        if on != enabled && !blocked {
+            if let Err(e) = store::set(enabled) {
+                crate::log!("autostart", "{e}");
+            }
+        }
+        if blocked && enabled {
+            crate::log!("autostart", "StartupTask switched off in Task Manager → Startup apps");
+        }
+        return blocked && enabled;
+    }
     let current = registered();
     if !enabled {
         if current.is_some() {

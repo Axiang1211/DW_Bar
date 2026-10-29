@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod accounts;
+mod i18n;
 mod platform;
 mod state;
 
@@ -149,7 +150,7 @@ fn open_settings(app: &AppHandle, page: Option<&str>) {
     let app = app.clone();
     off_ui_thread(move || {
         let built = WebviewWindowBuilder::new(&app, SETTINGS, WebviewUrl::App(url.into()))
-            .title("DW Bar 設定")
+            .title(i18n::tr(&app.state::<AppState>().inner.lock().unwrap().ui_lang, "DW Bar 設定"))
             .inner_size(820.0, 580.0)
             .min_inner_size(640.0, 460.0)
             .center()
@@ -272,13 +273,18 @@ fn apply_style(style: dwbar_core::config::StyleConfig) {
 
 // ───────────────────────── tray icon ─────────────────────────
 
-fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let settings = MenuItem::with_id(app, "settings", "設定…", true, None::<&str>)?;
-    let refresh = MenuItem::with_id(app, "refresh", "立即更新用量", true, None::<&str>)?;
-    let replace = MenuItem::with_id(app, "replace", "重新定位膠囊", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "結束 DW Bar", true, None::<&str>)?;
+fn tray_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<tauri::Wry>> {
+    let settings = MenuItem::with_id(app, "settings", i18n::tr(lang, "設定…"), true, None::<&str>)?;
+    let refresh = MenuItem::with_id(app, "refresh", i18n::tr(lang, "立即更新用量"), true, None::<&str>)?;
+    let replace = MenuItem::with_id(app, "replace", i18n::tr(lang, "重新定位膠囊"), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", i18n::tr(lang, "結束 DW Bar"), true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&settings, &refresh, &replace, &sep, &quit])?;
+    Menu::with_items(app, &[&settings, &refresh, &replace, &sep, &quit])
+}
+
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let lang = app.state::<AppState>().inner.lock().unwrap().ui_lang.clone();
+    let menu = tray_menu(app, &lang)?;
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("DW Bar")
         .menu(&menu)
@@ -303,6 +309,34 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 }
 
 // ───────────────────────── commands ─────────────────────────
+
+/// The pages resolved the UI language (setting or system): follow it in native text.
+#[tauri::command]
+async fn set_ui_lang(app: AppHandle, lang: String) {
+    let lang = match lang.as_str() {
+        "zh-TW" | "zh-CN" | "en" => lang,
+        _ => "en".to_string(),
+    };
+    {
+        let state = app.state::<AppState>();
+        let mut s = state.inner.lock().unwrap();
+        if s.ui_lang == lang {
+            return;
+        }
+        s.ui_lang = lang.clone();
+    }
+    if let Some(tray) = app.tray_by_id("main") {
+        match tray_menu(&app, &lang) {
+            Ok(menu) => {
+                let _ = tray.set_menu(Some(menu));
+            }
+            Err(e) => log::write("app", &format!("tray menu: {e}")),
+        }
+    }
+    if let Some(win) = app.get_webview_window(SETTINGS) {
+        let _ = win.set_title(i18n::tr(&lang, "DW Bar 設定"));
+    }
+}
 
 #[tauri::command]
 fn get_state(app: AppHandle) -> Snapshot {
@@ -454,7 +488,13 @@ fn read_log(lines: Option<usize>) -> Vec<String> {
 async fn set_widgets(app: AppHandle, show: bool) -> Result<String, String> {
     #[cfg(any(windows, feature = "lint-win"))]
     {
-        let result = dwbar_core::win::taskbar::set_widgets(show);
+        // The Store package's registry writes go to a private copy, so they would "work"
+        // without changing anything: send the user to Windows' own switch instead.
+        let result = if dwbar_core::win::autostart::packaged() {
+            Err("packaged".to_string())
+        } else {
+            dwbar_core::win::taskbar::set_widgets(show)
+        };
         let _ = app.run_on_main_thread({
             let app = app.clone();
             move || platform::apply(&app)
@@ -464,7 +504,11 @@ async fn set_widgets(app: AppHandle, show: bool) -> Result<String, String> {
             Ok(()) => Ok(if show { "已顯示小工具".into() } else { "已關閉小工具（天氣）".into() }),
             Err(_) => {
                 let _ = std::process::Command::new("explorer.exe").arg("ms-settings:taskbar").spawn();
-                Err("Windows 不允許其他程式更改這個設定，已幫你打開「工作列設定」，請把「小工具」關掉。".into())
+                Err(if show {
+                    "Windows 不允許其他程式更改這個設定，已幫你打開「工作列設定」，請把「小工具」打開。".into()
+                } else {
+                    "Windows 不允許其他程式更改這個設定，已幫你打開「工作列設定」，請把「小工具」關掉。".into()
+                })
             }
         }
     }
@@ -558,6 +602,7 @@ fn main() {
         .manage(AppState::new(config))
         .invoke_handler(tauri::generate_handler![
             get_state,
+            set_ui_lang,
             save_config,
             refresh_quotas,
             capsule_resize,

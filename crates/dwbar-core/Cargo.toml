@@ -22,6 +22,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_Graphics_Gdi",
   "Win32_System_LibraryLoader",
   "Win32_System_Registry",
+  "Win32_Storage_Packaging_Appx",
   "Win32_System_Threading",
   "Win32_UI_Accessibility",
   "Win32_UI_Controls",
@@ -29,3 +30,8 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
+
+# WinRT StartupTask: start-at-login for the Microsoft Store (MSIX) package.
+# Windows only: its async bindings don't build elsewhere (lint-win skips that module).
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["ApplicationModel", "Foundation"] }

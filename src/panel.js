@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS } from "./common.js";
+import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS, t, tb, setLang, localizePage, locale } from "./common.js";
 import { applyMaterial } from "./material.js";
 
 let state = null;
@@ -21,16 +21,16 @@ function card(q) {
   let body;
   if (q.ok && main) {
     const rows = [];
-    if (s && l) rows.push(`<div><dt><i class="sw" style="background:var(--weekly)"></i>${esc(l.label)}</dt><dd>剩 ${Math.round(left(l))}%</dd></div>`);
-    for (const w of q.windows.filter((w) => w !== s && w !== l)) rows.push(`<div><dt>${esc(w.label)}</dt><dd>剩 ${Math.round(left(w))}%</dd></div>`);
-    if (main.resets_at) rows.push(`<div><dt>重置</dt><dd>${resetText(main.resets_at)}（還有 ${untilText(main.resets_at)}）</dd></div>`);
-    rows.push(`<div><dt>餘額</dt><dd>${esc(q.balance || "—")}</dd></div>`);
-    body = `<div class="mc-big"><b>${Math.round(r)}%</b><small>${esc(main.label)} 剩餘</small></div><dl class="mc-rows">${rows.join("")}</dl>`;
+    if (s && l) rows.push(`<div><dt><i class="sw" style="background:var(--weekly)"></i>${esc(tb(l.label))}</dt><dd>${t("剩 {n}%", { n: Math.round(left(l)) })}</dd></div>`);
+    for (const w of q.windows.filter((w) => w !== s && w !== l)) rows.push(`<div><dt>${esc(tb(w.label))}</dt><dd>${t("剩 {n}%", { n: Math.round(left(w)) })}</dd></div>`);
+    if (main.resets_at) rows.push(`<div><dt>${t("重置")}</dt><dd>${t("{time}（還有 {left}）", { time: resetText(main.resets_at), left: untilText(main.resets_at) })}</dd></div>`);
+    rows.push(`<div><dt>${t("餘額")}</dt><dd>${esc(tb(q.balance) || "—")}</dd></div>`);
+    body = `<div class="mc-big"><b>${Math.round(r)}%</b><small>${esc(t("{label} 剩餘", { label: tb(main.label) }))}</small></div><dl class="mc-rows">${rows.join("")}</dl>`;
   } else if (q.ok) {
-    body = `<div class="mc-big"><b>${esc(q.balance || "—")}</b><small>餘額</small></div>`;
+    body = `<div class="mc-big"><b>${esc(tb(q.balance) || "—")}</b><small>${t("餘額")}</small></div>`;
   } else {
-    const act = a.local ? `<div class="mc-act"><button class="btn" data-refresh>重新偵測</button></div>` : `<div class="mc-act"><button class="btn" data-connect="${q.agent}">${q.connected ? "重新登入" : "連結帳號"}</button></div>`;
-    body = `<div class="mc-note">${esc(q.notice || "沒有資料")}</div>${act}`;
+    const act = a.local ? `<div class="mc-act"><button class="btn" data-refresh>${t("重新偵測")}</button></div>` : `<div class="mc-act"><button class="btn" data-connect="${q.agent}">${q.connected ? t("重新登入") : t("連結帳號")}</button></div>`;
+    body = `<div class="mc-note">${esc(tb(q.notice) || t("沒有資料"))}</div>${act}`;
   }
   return `<article class="mc${q.agent === focusAgent ? " focus" : ""}">
     <div class="mc-glow" style="background:${glow}"></div>
@@ -41,19 +41,22 @@ function card(q) {
 
 function render() {
   if (!state) return;
+  setLang(state.config.language);
+  localizePage();
   applyTheme(state.config.theme);
   applyIconStyle(state.config.icon_style);
   applyMaterial(state.config.material, { theme: state.config.theme, blur: true, platform: state.platform, round: state.round_corners });
   const shown = state.quotas.filter((q) => q.installed);
   const newest = Math.max(0, ...state.quotas.filter((q) => q.ok).map((q) => q.updated));
-  $("#sub").textContent = `${shown.length} 個 AI${newest ? ` · 上次更新 ${new Date(newest * 1000).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false })}` : ""}`;
+  const time = newest ? new Date(newest * 1000).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
+  $("#sub").textContent = t("{n} 個 AI", { n: shown.length }) + (newest ? ` · ${t("上次更新 {time}", { time })}` : "");
   $("#refresh").classList.toggle("spin", !!state.refreshing);
   // The AI that was clicked goes first.
   const ordered = [...shown].sort((a, b) => (b.agent === focusAgent) - (a.agent === focusAgent));
   $("#cards").innerHTML = ordered.length
     ? ordered.map(card).join("")
-    : `<div class="empty">還沒有連結任何 AI。<br><button class="link" data-goto="agents">連結帳號</button></div>`;
-  $("#foot").textContent = `每 ${state.config.refresh_minutes} 分鐘自動更新`;
+    : `<div class="empty">${t("還沒有連結任何 AI。")}<br><button class="link" data-goto="agents">${t("連結帳號")}</button></div>`;
+  $("#foot").textContent = t("每 {n} 分鐘自動更新", { n: state.config.refresh_minutes });
   if (!open) return;
   requestAnimationFrame(() => {
     const w = $("#wrap");

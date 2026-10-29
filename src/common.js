@@ -1,8 +1,10 @@
 // Shared helpers for the capsule and settings pages.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { t, tb, locale } from "./i18n.js";
 
 export { invoke, listen };
+export { t, tb, setLang, lang, locale, localizePage } from "./i18n.js";
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -40,10 +42,10 @@ export function resetText(unix) {
   if (!unix) return "";
   const d = new Date(unix * 1000);
   const now = new Date();
-  const hm = d.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const hm = d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", hour12: false });
   const days = (d - now) / 86400000;
   if (d.toDateString() === now.toDateString()) return hm;
-  if (days < 6.5) return `週${"日一二三四五六"[d.getDay()]} ${hm}`;
+  if (days < 6.5) return `${d.toLocaleDateString(locale(), { weekday: "short" })} ${hm}`;
   return `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
 }
 
@@ -54,9 +56,9 @@ export function untilText(unix) {
   const d = Math.floor(s / 86400); s -= d * 86400;
   const h = Math.floor(s / 3600); s -= h * 3600;
   const m = Math.floor(s / 60);
-  if (d) return `${d} 天 ${h} 小時`;
-  if (h) return `${h} 小時 ${m} 分`;
-  return `${m} 分`;
+  if (d) return t("{d} 天 {h} 小時", { d, h });
+  if (h) return t("{h} 小時 {m} 分", { h, m });
+  return t("{m} 分", { m });
 }
 
 // Upper half arc (5-hour window) and inner circle (weekly), same geometry as the prototype.
@@ -150,14 +152,14 @@ export function applyTheme(theme) {
 
 export function tooltip(reading) {
   const name = reading.name;
-  if (!reading.ok) return `${name}\n${reading.notice || "沒有資料"}`;
+  if (!reading.ok) return `${name}\n${tb(reading.notice) || t("沒有資料")}`;
   const lines = [name];
   for (const w of reading.windows) {
     const r = left(w);
-    const reset = w.resets_at ? `（${resetText(w.resets_at)} 重置）` : "";
-    lines.push(`${w.label}　剩 ${Math.round(r)}%${reset}`);
+    const reset = w.resets_at ? t("（{time} 重置）", { time: resetText(w.resets_at) }) : "";
+    lines.push(`${tb(w.label)}　${t("剩 {n}%", { n: Math.round(r) })}${reset}`);
   }
-  if (reading.plan) lines.push(`方案　${reading.plan}`);
-  if (reading.balance) lines.push(`餘額　${reading.balance}`);
+  if (reading.plan) lines.push(`${t("方案")}　${reading.plan}`);
+  if (reading.balance) lines.push(`${t("餘額")}　${tb(reading.balance)}`);
   return lines.join("\n");
 }

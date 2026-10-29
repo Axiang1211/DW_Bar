@@ -1,6 +1,8 @@
 import {
   $, $$, invoke, listen, ringSVG, left, win, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS,
+  t, tb, setLang, localizePage, locale,
 } from "./common.js";
+import { LANGS } from "./i18n.js";
 import { KINDS, GRADIENTS, METALS, applyMaterial, osBlurs, prefersDark } from "./material.js";
 
 let state = null;
@@ -19,7 +21,7 @@ function goto(page) {
 window.addEventListener("hashchange", () => goto(location.hash.slice(1)));
 listen("goto", (e) => { location.hash = e.payload; });
 listen("account-linked", (e) => {
-  toast(`已連結 ${AGENTS[e.payload]?.account || "帳號"}`);
+  toast(t("已連結 {name}", { name: t(AGENTS[e.payload]?.account || "帳號") }));
   location.hash = "usage";
 });
 
@@ -34,10 +36,10 @@ function save(patch) {
     saveTimer = 0;
     try {
       state = await invoke("save_config", { config });
-      toast("已儲存");
+      toast(t("已儲存"));
       renderAll();
     } catch (err) {
-      toast(String(err));
+      toast(tb(String(err)));
     }
   }, 250);
 }
@@ -71,14 +73,16 @@ function bindControls() {
     }),
   );
   $("#refreshMin").addEventListener("change", (e) => save({ refresh_minutes: parseInt(e.target.value, 10) }));
+  $("#language").innerHTML = LANGS.map(([v, name]) => `<option value="${v}">${name}</option>`).join("");
+  $("#language").addEventListener("change", (e) => save({ language: e.target.value }));
   bindStyle();
   bindMaterial();
   $("#widgetsToggle").addEventListener("change", async (e) => {
     const show = e.target.checked;
     try {
-      toast(await invoke("set_widgets", { show }));
+      toast(tb(await invoke("set_widgets", { show })));
     } catch (err) {
-      toast(String(err));
+      toast(tb(String(err)));
     }
     state = await invoke("get_state");
     renderAll();
@@ -92,12 +96,12 @@ function bindControls() {
     const c = e.target.closest("[data-connect]");
     if (c) {
       invoke("connect_account", { agent: c.dataset.connect });
-      toast("請在跳出的視窗中登入");
+      toast(t("請在跳出的視窗中登入"));
       return;
     }
     if (e.target.closest("[data-refresh]")) {
       invoke("refresh_quotas");
-      toast("正在重新偵測…");
+      toast(t("正在重新偵測…"));
       return;
     }
     const d = e.target.closest("[data-disconnect]");
@@ -105,7 +109,7 @@ function bindControls() {
   });
   $("#clearAccounts").addEventListener("click", () => {
     invoke("clear_accounts");
-    toast("已清除登入資料");
+    toast(t("已清除登入資料"));
   });
   $("#reloadLog").addEventListener("click", loadLog);
   $("#copyDiag").addEventListener("click", copyDiag);
@@ -119,6 +123,7 @@ function syncControls() {
   syncPosition();
   if (document.activeElement !== $("#offset")) $("#offset").value = config.offset_x;
   $("#refreshMin").value = String(config.refresh_minutes);
+  $("#language").value = config.language || "auto";
   syncStyle();
   syncMaterial();
   $("#widgetsToggle").checked = !!state.placement.widgets;
@@ -171,17 +176,21 @@ function previewMaterial(m) {
   $("#matAngleVal").textContent = `${m.angle}°`;
   $("#matTintVal").textContent = `${m.tint}%`;
 }
-function bindMaterial() {
+/** Tiles and swatches (rebuilt when the language changes). */
+function buildMaterialUI() {
   $("#matTiles").innerHTML = KINDS.map(
-    ([k, name]) => `<button class="mt" role="radio" data-kind="${k}"><span class="mt-wall"><span class="mt-scope mp-scope"><span class="mt-chip surface"></span></span></span>${name}</button>`,
+    ([k, name]) => `<button class="mt" role="radio" data-kind="${k}"><span class="mt-wall"><span class="mt-scope mp-scope"><span class="mt-chip surface"></span></span></span>${t(name)}</button>`,
   ).join("");
   $("#matGrads").innerHTML =
     Object.entries(GRADIENTS)
-      .map(([id, g]) => `<button class="sw-btn" data-grad="${id}"><i style="background:linear-gradient(135deg,${g.stops.join(",")})"></i>${g.name}</button>`)
-      .join("") + `<button class="sw-btn" data-grad="custom"><i>＋</i>自訂</button>`;
+      .map(([id, g]) => `<button class="sw-btn" data-grad="${id}"><i style="background:linear-gradient(135deg,${g.stops.join(",")})"></i>${t(g.name)}</button>`)
+      .join("") + `<button class="sw-btn" data-grad="custom"><i>＋</i>${t("自訂")}</button>`;
   $("#matMetals").innerHTML = Object.entries(METALS)
-    .map(([id, m]) => `<button class="sw-btn" data-metal="${id}"><i style="background:linear-gradient(135deg,${m.stops.join(",")})"></i>${m.name}</button>`)
+    .map(([id, m]) => `<button class="sw-btn" data-metal="${id}"><i style="background:linear-gradient(135deg,${m.stops.join(",")})"></i>${t(m.name)}</button>`)
     .join("");
+}
+function bindMaterial() {
+  buildMaterialUI();
   $("#matBrand").innerHTML = ringSVG("dw", { ok: true, windows: [{ period: "five_hour", used_percent: 36 }, { period: "week", used_percent: 28 }] });
   $("#matRing").innerHTML = ringSVG("claude", { ok: true, windows: [{ period: "five_hour", used_percent: 20 }, { period: "week", used_percent: 34 }] });
   $("#matTiles").addEventListener("click", (e) => {
@@ -220,7 +229,7 @@ function syncMaterial() {
   $("#matCustom").hidden = m.gradient !== "custom";
   $$("#matGrads [data-grad]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.grad === m.gradient)));
   $$("#matMetals [data-metal]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.metal === m.metal)));
-  $("#matDesc").textContent = MAT_DESC[m.kind] || "";
+  $("#matDesc").textContent = t(MAT_DESC[m.kind] || "");
   const set = (id, v) => document.activeElement !== $(id) && ($(id).value = v);
   set("#matColor", m.color);
   set("#matOpacity", m.opacity);
@@ -261,20 +270,20 @@ function syncPosition() {
     const on = b.dataset.pos === pos;
     b.setAttribute("aria-checked", String(on));
     b.classList.toggle("on", on);
-    b.setAttribute("aria-label", POSITIONS[b.dataset.pos][0]);
+    b.setAttribute("aria-label", t(POSITIONS[b.dataset.pos][0]));
   });
-  $("#posTitle").textContent = POSITIONS[pos][0];
-  $("#posDesc").textContent = POSITIONS[pos][1];
+  $("#posTitle").textContent = t(POSITIONS[pos][0]);
+  $("#posDesc").textContent = t(POSITIONS[pos][1]);
   $("#taskbarRules").hidden = pos !== "taskbar" || !onWindows();
-  $("#slotDesc").textContent = SLOT_DESC[config.slot] || "";
+  $("#slotDesc").textContent = t(SLOT_DESC[config.slot] || "");
 }
 
 // ───────── 用量 ─────────
 function bar(w, weekly) {
   const r = left(w);
-  const reset = w.resets_at ? `${resetText(w.resets_at)} 重置 · 還有 ${untilText(w.resets_at)}` : "";
+  const reset = w.resets_at ? t("{time} 重置 · 還有 {left}", { time: resetText(w.resets_at), left: untilText(w.resets_at) }) : "";
   return `<div class="bar">
-    <div class="bar-top"><span>${w.label}</span><b>剩 ${Math.round(r)}%</b></div>
+    <div class="bar-top"><span>${escapeHtml(tb(w.label))}</span><b>${t("剩 {n}%", { n: Math.round(r) })}</b></div>
     <div class="bar-track"><div class="bar-fill ${weekly ? "wk" : "lv-" + level(r)}" style="width:${r}%"></div></div>
     <small>${reset}</small>
   </div>`;
@@ -282,24 +291,24 @@ function bar(w, weekly) {
 
 function connectButton(agent, primary = true) {
   const a = AGENTS[agent];
-  return `<button class="btn${primary ? " primary" : ""}" data-connect="${agent}">${a.button || "連結 " + a.account}</button>`;
+  return `<button class="btn${primary ? " primary" : ""}" data-connect="${agent}">${a.button ? t(a.button) : t("連結 {account}", { account: t(a.account) })}</button>`;
 }
 
 function renderUsage() {
   const cards = $("#cards");
   const shown = state.quotas.filter((q) => q.installed);
   $("#refresh").disabled = state.refreshing;
-  $("#refresh").textContent = state.refreshing ? "更新中…" : "立即更新";
+  $("#refresh").textContent = state.refreshing ? t("更新中…") : t("立即更新");
   const newest = Math.max(0, ...state.quotas.filter((q) => q.ok).map((q) => q.updated));
   $("#usageHint").textContent = newest
-    ? `上次更新 ${new Date(newest * 1000).toLocaleTimeString("zh-TW", { hour12: false })}，每 ${config.refresh_minutes} 分鐘自動更新。`
-    : state.refreshing ? "正在讀取各家 AI 的額度…" : "";
+    ? t("上次更新 {time}，每 {n} 分鐘自動更新。", { time: new Date(newest * 1000).toLocaleTimeString(locale(), { hour12: false }), n: config.refresh_minutes })
+    : state.refreshing ? t("正在讀取各家 AI 的額度…") : "";
   if (!shown.length) {
     cards.innerHTML = state.refreshing && !state.quotas.length
-      ? `<div class="empty">正在偵測…</div>`
+      ? `<div class="empty">${t("正在偵測…")}</div>`
       : `<article class="card welcome">
-          <b>連結你的 AI 帳號</b>
-          <p>登入後，工作列就會顯示 5 小時與每週額度。登入是在官方網站上完成，DW Bar 不會看到你的密碼。</p>
+          <b>${t("連結你的 AI 帳號")}</b>
+          <p>${t("登入後，工作列就會顯示 5 小時與每週額度。登入是在官方網站上完成，DW Bar 不會看到你的密碼。")}</p>
           <div class="acts">${Object.keys(AGENTS).filter((id) => id !== "dw" && !AGENTS[id].local).map((id, i) => connectButton(id, i === 0)).join("")}</div>
         </article>`;
     return;
@@ -309,20 +318,20 @@ function renderUsage() {
       let body;
       if (q.ok) body = q.windows.length
         ? q.windows.map((w) => bar(w, w.period === "week" || w.period === "month")).join("")
-        : `<div class="bigbal"><small>餘額</small><b>${escapeHtml(q.balance || "—")}</b></div>`;
+        : `<div class="bigbal"><small>${t("餘額")}</small><b>${escapeHtml(tb(q.balance) || "—")}</b></div>`;
       else {
         const cta = AGENTS[q.agent]?.local
-          ? `<button class="btn" data-refresh>重新偵測</button>`
+          ? `<button class="btn" data-refresh>${t("重新偵測")}</button>`
           : q.connected
-            ? `<button class="btn" data-connect="${q.agent}">重新登入</button>`
+            ? `<button class="btn" data-connect="${q.agent}">${t("重新登入")}</button>`
             : connectButton(q.agent);
-        body = `<div class="notice">${escapeHtml(q.notice || "沒有資料")}</div><div class="acts">${cta}</div>`;
+        body = `<div class="notice">${escapeHtml(tb(q.notice) || t("沒有資料"))}</div><div class="acts">${cta}</div>`;
       }
-      const src = q.source === "account" ? "帳號" : q.source === "cli" ? "命令列" : "";
+      const src = q.source === "account" ? t("帳號") : q.source === "cli" ? t("命令列") : "";
       const meta = [
-        q.plan && `<span>方案 <b>${escapeHtml(q.plan)}</b></span>`,
-        `<span>餘額 <b>${q.balance ? escapeHtml(q.balance) : "—"}</b></span>`,
-        src && `<span class="src">來源 ${src}</span>`,
+        q.plan && `<span>${t("方案")} <b>${escapeHtml(q.plan)}</b></span>`,
+        `<span>${t("餘額")} <b>${q.balance ? escapeHtml(tb(q.balance)) : "—"}</b></span>`,
+        src && `<span class="src">${t("來源")} ${src}</span>`,
       ].filter(Boolean).join("");
       return `<article class="card">
         <div class="card-head"><span class="ring">${ringSVG(q.agent, q)}</span>
@@ -346,12 +355,12 @@ function renderAgents() {
           <b>${a.name}</b>
           <span class="acct"></span>
           <span class="where"></span>
-          <details${a.cli ? "" : " hidden"}><summary>進階：指定命令列工具路徑</summary>
-            <input class="path" placeholder="選填，例如 C:\\Users\\你\\.local\\bin\\${id === "claude" ? "claude" : "codex"}.exe" spellcheck="false" />
+          <details${a.cli ? "" : " hidden"}><summary>${t("進階：指定命令列工具路徑")}</summary>
+            <input class="path" placeholder="${escapeHtml(t("選填，例如 C:\\Users\\你\\.local\\bin\\{exe}.exe", { exe: id === "claude" ? "claude" : "codex" }))}" spellcheck="false" />
           </details>
         </div>
         <div class="acts col"><span class="link-btn"></span>
-          <label class="switch" title="在工作列顯示"><input type="checkbox" /><i></i></label></div>
+          <label class="switch" title="${t("在工作列顯示")}"><input type="checkbox" /><i></i></label></div>
       </div>`)
       .join("");
     $$(".row", box).forEach((row) => {
@@ -376,20 +385,20 @@ function renderAgents() {
     const acct = $(".acct", row);
     if (a.local) {
       acct.innerHTML = q?.ok
-        ? `<i class="dot ok"></i>正在讀取 Antigravity${q.account ? `（${escapeHtml(q.account)}）` : ""}`
-        : `<i class="dot"></i>${escapeHtml(a.site)}`;
+        ? `<i class="dot ok"></i>${t("正在讀取 Antigravity")}${q.account ? `（${escapeHtml(q.account)}）` : ""}`
+        : `<i class="dot"></i>${escapeHtml(t(a.site))}`;
       $(".link-btn", row).innerHTML = "";
     } else if (c.connected) {
-      acct.innerHTML = `<i class="dot ok"></i>已連結 ${escapeHtml(a.account)}${q?.account ? `（${escapeHtml(q.account)}）` : ""}`;
-      $(".link-btn", row).innerHTML = `<button class="btn" data-disconnect="${id}">中斷連結</button>`;
+      acct.innerHTML = `<i class="dot ok"></i>${escapeHtml(t("已連結 {account}", { account: t(a.account) }))}${q?.account ? `（${escapeHtml(q.account)}）` : ""}`;
+      $(".link-btn", row).innerHTML = `<button class="btn" data-disconnect="${id}">${t("中斷連結")}</button>`;
     } else {
-      acct.innerHTML = `<i class="dot"></i>尚未連結 ${escapeHtml(a.account)}（${escapeHtml(a.site)}）`;
+      acct.innerHTML = `<i class="dot"></i>${escapeHtml(t("尚未連結 {account}（{site}）", { account: t(a.account), site: t(a.site) }))}`;
       $(".link-btn", row).innerHTML = connectButton(id);
     }
-    const found = [q?.app && "桌面 App", q?.cli && "命令列工具"].filter(Boolean);
+    const found = [q?.app && t("桌面 App"), q?.cli && t("命令列工具")].filter(Boolean);
     $(".where", row).textContent = found.length
-      ? `這台電腦上有：${found.join("、")}`
-      : "這台電腦上沒有偵測到它的 App，連結帳號就能顯示用量。";
+      ? t("這台電腦上有：{list}", { list: found.join(t("、")) })
+      : t("這台電腦上沒有偵測到它的 App，連結帳號就能顯示用量。");
   });
 }
 
@@ -399,39 +408,37 @@ function renderDiag() {
   const rect = (r) => (r ? `${r.left}, ${r.top} → ${r.right}, ${r.bottom}（${r.right - r.left}×${r.bottom - r.top}）` : "—");
   const rows = [
     ["版本", state.version],
-    ["工作列", p.found_taskbar ? "已找到" : "找不到（Explorer 未就緒？）"],
-    ["工作列對齊", p.centered ? "置中" : "靠左"],
-    ["小工具按鈕", p.widgets ? "顯示" : "隱藏"],
-    ["附著方式", p.embedded ? "嵌入工作列" : p.fallback ? "浮貼（嵌入被拒，已自動改用）" : "浮貼"],
+    ["工作列", t(p.found_taskbar ? "已找到" : "找不到（Explorer 未就緒？）")],
+    ["工作列對齊", t(p.centered ? "置中" : "靠左")],
+    ["小工具按鈕", t(p.widgets ? "顯示" : "隱藏")],
+    ["附著方式", t(p.embedded ? "嵌入工作列" : p.fallback ? "浮貼（嵌入被拒，已自動改用）" : "浮貼")],
     ["縮放", p.scale ? `${Math.round(p.scale * 100)}%` : "—"],
     ["工作列範圍", rect(p.taskbar)],
     ["膠囊範圍", rect(p.capsule)],
-    ["全螢幕", state.fullscreen ? "是（膠囊已隱藏）" : "否"],
+    ["全螢幕", t(state.fullscreen ? "是（膠囊已隱藏）" : "否")],
     ["設定檔", state.config_path],
     ["紀錄檔", state.log_path],
   ];
-  $("#kv").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(String(v))}</dd>`).join("");
-  $("#placeHint").textContent = p.fallback
-    ? "Windows 拒絕了嵌入，目前改用「浮貼在上方」。"
-    : "";
+  $("#kv").innerHTML = rows.map(([k, v]) => `<dt>${t(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join("");
+  $("#placeHint").textContent = p.fallback ? t("Windows 拒絕了嵌入，目前改用「浮貼在上方」。") : "";
 }
 
 async function loadLog() {
   const lines = await invoke("read_log", { lines: 200 });
   const log = $("#log");
-  log.textContent = lines.join("\n") || "（還沒有紀錄）";
+  log.textContent = lines.join("\n") || t("（還沒有紀錄）");
   log.scrollTop = log.scrollHeight;
 }
 
 async function copyDiag() {
   const lines = await invoke("read_log", { lines: 80 });
   const kv = $$("#kv dt").map((dt) => `${dt.textContent}: ${dt.nextElementSibling.textContent}`);
-  const text = ["DW Bar 診斷", ...kv, "", ...lines].join("\n");
+  const text = [t("DW Bar 診斷"), ...kv, "", ...lines].join("\n");
   try {
     await navigator.clipboard.writeText(text);
-    toast("已複製");
+    toast(t("已複製"));
   } catch {
-    toast("無法存取剪貼簿");
+    toast(t("無法存取剪貼簿"));
   }
 }
 
@@ -451,8 +458,17 @@ function renderIconPreview() {
   box.dataset.built = "1";
 }
 
+let shownLang = null;
 function renderAll() {
   config = structuredClone(state.config);
+  const l = setLang(config.language);
+  if (l !== shownLang) {
+    // Text built once (static HTML, agent rows, material tiles) is redone in the new language.
+    shownLang = l;
+    localizePage();
+    $("#agentRows").dataset.built = "";
+    buildMaterialUI();
+  }
   // Hide options that only exist on Windows (taskbar rules, widgets, translucent windows, …).
   $$("[data-os=windows]").forEach((el) => {
     if (!onWindows()) el.hidden = true;

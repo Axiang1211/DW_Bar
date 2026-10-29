@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme, applyIconStyle } from "./common.js";
+import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme, applyIconStyle, t, setLang, localizePage } from "./common.js";
 import { applyMaterial } from "./material.js";
 
 const cap = $("#cap");
@@ -25,8 +25,16 @@ function mostUrgent(list) {
   return [...list].sort((a, b) => score(a) - score(b))[0];
 }
 
+let lastLang = null;
 function render(state) {
   last = state;
+  const resolved = setLang(state.config.language);
+  localizePage();
+  // The tray menu and native window titles follow the language the pages resolved.
+  if (resolved !== lastLang) {
+    lastLang = resolved;
+    invoke("set_ui_lang", { lang: resolved }).catch(() => {});
+  }
   applyTheme(state.config.theme);
   applyIconStyle(state.config.icon_style);
   applyMaterial(state.config.material, { theme: state.config.theme });
@@ -48,12 +56,12 @@ function render(state) {
 
   if (!shown.length) {
     // Nothing detected yet: one brand ring that opens account linking.
-    const b = item("dw", null, state.refreshing && !state.quotas.length ? "正在偵測 AI…" : "DW Bar：點一下連結你的 AI 帳號");
+    const b = item("dw", null, state.refreshing && !state.quotas.length ? t("正在偵測 AI…") : t("DW Bar：點一下連結你的 AI 帳號"));
     b.addEventListener("click", () => invoke("show_settings", { page: "agents" }));
     cap.append(b);
   } else {
     shown.forEach((q, i) => {
-      const el = item(q.agent, q, collapsed ? `${tooltip(q)}\n（點一下展開全部）` : tooltip(q));
+      const el = item(q.agent, q, collapsed ? `${tooltip(q)}\n${t("（點一下展開全部）")}` : tooltip(q));
       if (!q.ok) el.classList.add("off");
       if (!collapsed && corner) el.style.animationDelay = `${i * 40}ms`;
       if (q.ok && !q.windows.length && q.balance) {

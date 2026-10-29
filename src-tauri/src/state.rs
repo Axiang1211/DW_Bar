@@ -35,6 +35,8 @@ pub struct Inner {
     pub tip_anchor: Option<Rect>,
     /// Start-at-login is on, but switched off in Task Manager → Startup apps.
     pub autostart_blocked: bool,
+    /// Language the pages resolved ("zh-TW" / "zh-CN" / "en"), for native text.
+    pub ui_lang: String,
 }
 
 pub struct AppState {
@@ -45,8 +47,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: Config) -> Self {
+        let ui_lang = crate::i18n::initial(&config.language);
         Self {
             inner: Mutex::new(Inner {
+                ui_lang,
                 config,
                 quotas: Vec::new(),
                 refreshing: false,

@@ -165,6 +165,8 @@ pub struct Config {
     pub icon_style: String,
     /// Background of the panel, hover card and capsule.
     pub material: Material,
+    /// UI language: auto (follow the system) / zh-TW / zh-CN / en.
+    pub language: String,
     /// Hide while a fullscreen app, game or presentation is in front.
     pub hide_fullscreen: bool,
     /// Minutes between quota refreshes (clamped 2..=60).
@@ -254,6 +256,7 @@ impl Default for Config {
             show_percent: false,
             icon_style: "mono".into(),
             material: Material::default(),
+            language: "auto".into(),
             hide_fullscreen: true,
             refresh_minutes: 5,
             autostart: false,
