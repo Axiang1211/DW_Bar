@@ -6,6 +6,7 @@
     <title>DW Bar 設定</title>
     <link rel="stylesheet" href="/src/settings.css" />
     <link rel="stylesheet" href="/src/ring.css" />
+    <link rel="stylesheet" href="/src/material.css" />
   </head>
   <body>
     <nav class="side" aria-label="設定分類">
@@ -78,6 +79,49 @@
             <div class="lbl"><b>主題</b><span>跟隨系統會依 Windows 的深色／淺色模式切換。</span></div>
             <div class="seg" data-key="theme"><button value="auto">跟隨系統</button><button value="dark">深色</button><button value="light">淺色</button></div>
           </div>
+        </div>
+
+        <h2 class="sec-h">背景材質</h2>
+        <p class="hint">用量面板、滑鼠移上去的小卡和膠囊的背景。</p>
+        <div class="mat">
+          <div class="mat-tiles" id="matTiles" role="radiogroup" aria-label="背景材質"></div>
+          <div class="mat-body">
+            <div class="mat-prev" aria-hidden="true">
+              <div class="mp-scope" id="matScope">
+                <div class="mp-panel surface">
+                  <div class="mp-head"><span class="ring" id="matBrand"></span><div><b>DW Bar</b><small>3 個 AI · 上次更新 23:20</small></div></div>
+                  <div class="mc mp-card"><span class="ring" id="matRing"></span>
+                    <div><div class="mp-top"><b>Claude</b><span class="mp-chip">pro</span></div>
+                      <div class="mp-big"><b>80%</b><small>5 小時 剩餘</small></div>
+                      <div class="mp-row"><span><i class="mp-sw"></i>每週</span><b>剩 66%</b></div></div>
+                  </div>
+                  <div class="mp-foot"><span class="mp-link">管理 AI 帳號</span><span>每 5 分鐘自動更新</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="mat-opts">
+              <p class="mat-desc" id="matDesc"></p>
+              <div class="mo" data-mat="color">
+                <label class="mo-row"><span>顏色</span><input type="color" id="matColor" /></label>
+              </div>
+              <div class="mo" data-mat="gradient">
+                <div class="mat-sw" id="matGrads"></div>
+                <div class="mo-custom" id="matCustom">
+                  <label class="mo-row"><span>顏色 1</span><input type="color" id="matC1" /></label>
+                  <label class="mo-row"><span>顏色 2</span><input type="color" id="matC2" /></label>
+                  <label class="mo-row"><span>角度</span><input type="range" id="matAngle" min="0" max="355" step="5" /><em id="matAngleVal"></em></label>
+                </div>
+              </div>
+              <div class="mo" data-mat="metal"><div class="mat-sw" id="matMetals"></div></div>
+              <div class="mo" data-mat="color gradient">
+                <label class="mo-row"><span>不透明度</span><input type="range" id="matOpacity" min="20" max="100" step="1" /><em id="matOpVal"></em></label>
+                <small class="mo-note">低於 95% 時，後方的桌面會變模糊（毛玻璃效果）。</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="group">
           <div class="row">
             <div class="lbl"><b>圖示風格</b><span>圈圈中間顯示各家的官方圖示（從官網載入），可選擇不同風格。</span></div>
             <div class="seg" data-key="icon_style">
@@ -122,7 +166,8 @@
         <header><h1>一般</h1></header>
         <div class="group">
           <div class="row">
-            <div class="lbl"><b>開機時啟動</b><span>登入 Windows 後自動開啟 DW Bar。</span></div>
+            <div class="lbl"><b>開機時啟動</b><span>登入電腦後自動開啟 DW Bar。</span>
+              <span class="warn-note" id="autostartNote" hidden>Windows 在「工作管理員 → 啟動應用程式」把 DW Bar 停用了，所以開機不會啟動。把這個開關關掉再打開，就會重新啟用。</span></div>
             <label class="switch"><input type="checkbox" data-key="autostart" /><i></i></label>
           </div>
           <div class="row">

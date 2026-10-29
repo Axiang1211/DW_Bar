@@ -296,3 +296,28 @@ pub fn hide_panel(app: &AppHandle) {
         let _ = win.hide();
     }
 }
+
+/// Blur the desktop behind the panel / hover card for the chosen material.
+/// Windows: accent blur on DW Bar's own window; macOS: vibrancy. Run on the UI thread.
+pub fn set_backdrop(win: &WebviewWindow, backdrop: dwbar_core::config::Backdrop) {
+    #[cfg(any(windows, feature = "lint-win"))]
+    if let Some(hwnd) = hwnd_of(win) {
+        dwbar_core::win::backdrop::set(hwnd, backdrop);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use dwbar_core::config::Backdrop;
+        use tauri::window::{Effect, EffectState, EffectsBuilder};
+        let effect = match backdrop {
+            Backdrop::None => None,
+            Backdrop::Blur => Some(Effect::UnderWindowBackground),
+            Backdrop::Acrylic => Some(Effect::HudWindow),
+        };
+        let config = effect.map(|e| EffectsBuilder::new().effect(e).state(EffectState::Active).radius(12.0).build());
+        if let Err(e) = win.set_effects(config) {
+            dwbar_core::log::write("backdrop", &format!("vibrancy: {e}"));
+        }
+    }
+    #[cfg(not(any(windows, feature = "lint-win", target_os = "macos")))]
+    let _ = (win, backdrop);
+}

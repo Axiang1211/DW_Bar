@@ -13,7 +13,9 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
 };
-use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use tauri_plugin_autostart::MacosLauncher;
+#[cfg(not(any(windows, feature = "lint-win")))]
+use tauri_plugin_autostart::ManagerExt;
 
 pub const CAPSULE: &str = "capsule";
 pub const SETTINGS: &str = "settings";
@@ -91,6 +93,7 @@ fn create_tip(app: &AppHandle) {
             Ok(win) => {
                 let _ = win.set_ignore_cursor_events(true);
                 let _ = app.run_on_main_thread(move || platform::prepare(&win));
+                apply_backdrop(&app);
             }
             Err(e) => log::write("app", &format!("tip window failed: {e}")),
         }
@@ -112,10 +115,21 @@ fn create_panel(app: &AppHandle) {
             .always_on_top(true)
             .inner_size(400.0, 520.0)
             .build();
-        if let Err(e) = built {
-            log::write("app", &format!("panel window failed: {e}"));
+        match built {
+            Ok(_) => apply_backdrop(&app),
+            Err(e) => log::write("app", &format!("panel window failed: {e}")),
         }
     });
+}
+
+/// Desktop blur behind the panel and hover card, per the chosen background material.
+fn apply_backdrop(app: &AppHandle) {
+    let backdrop = app.state::<AppState>().inner.lock().unwrap().config.material.backdrop();
+    for label in [TIP, PANEL] {
+        if let Some(win) = app.get_webview_window(label) {
+            let _ = app.run_on_main_thread(move || platform::set_backdrop(&win, backdrop));
+        }
+    }
 }
 
 fn open_settings(app: &AppHandle, page: Option<&str>) {
@@ -298,7 +312,7 @@ fn get_state(app: AppHandle) -> Snapshot {
 #[tauri::command]
 fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
     config.clamp();
-    let (agents_changed, autostart) = {
+    let (agents_changed, autostart, backdrop_changed) = {
         let state = app.state::<AppState>();
         let mut s = state.inner.lock().unwrap();
         // Linking is owned by the sign-in flow; a settings page with an older copy must not undo it.
@@ -311,17 +325,19 @@ fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
             apply_style(config.style.clone());
         }
         let autostart = (s.config.autostart != config.autostart).then_some(config.autostart);
+        let backdrop_changed = s.config.material.backdrop() != config.material.backdrop();
         s.config = config;
-        (changed, autostart)
+        (changed, autostart, backdrop_changed)
     };
+    if backdrop_changed {
+        apply_backdrop(&app);
+    }
     let to_save = app.state::<AppState>().inner.lock().unwrap().config.clone();
     to_save.save().map_err(|e| format!("無法儲存設定：{e}"))?;
     if let Some(on) = autostart {
-        let launcher = app.autolaunch();
-        let result = if on { launcher.enable() } else { launcher.disable() };
-        if let Err(e) = result {
-            log::write("app", &format!("autostart: {e}"));
-        }
+        set_autostart(&app, on);
+        // Turning it on from here also clears a Task Manager "disabled" mark.
+        app.state::<AppState>().inner.lock().unwrap().autostart_blocked = false;
     }
     platform::apply(&app);
     if agents_changed {
@@ -492,16 +508,53 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Start at login. Windows writes a quoted Run entry itself (the plugin's is unquoted,
+/// and the install folder "DW Bar" has a space); macOS uses the plugin's LaunchAgent.
+fn set_autostart(app: &AppHandle, on: bool) {
+    #[cfg(any(windows, feature = "lint-win"))]
+    {
+        let _ = app;
+        if let Err(e) = dwbar_core::win::autostart::set(on) {
+            log::write("app", &format!("autostart: {e}"));
+        }
+    }
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    {
+        let launcher = app.autolaunch();
+        let result = if on { launcher.enable() } else { launcher.disable() };
+        if let Err(e) = result {
+            log::write("app", &format!("autostart: {e}"));
+        }
+    }
+}
+
+/// At every start, repair the login entry so it matches the setting and this install.
+fn sync_autostart(app: &AppHandle, on: bool) {
+    #[cfg(any(windows, feature = "lint-win"))]
+    {
+        let blocked = dwbar_core::win::autostart::sync(on);
+        app.state::<AppState>().inner.lock().unwrap().autostart_blocked = blocked;
+    }
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    {
+        let launcher = app.autolaunch();
+        if launcher.is_enabled().unwrap_or(false) != on {
+            set_autostart(app, on);
+        }
+    }
+}
+
 // ───────────────────────── main ─────────────────────────
 
 fn main() {
-    log::write("app", &format!("DW Bar {} starting", env!("CARGO_PKG_VERSION")));
+    let at_login = std::env::args().any(|a| a == dwbar_core::startup::ARG);
+    log::write("app", &format!("DW Bar {} starting{}", env!("CARGO_PKG_VERSION"), if at_login { " (at login)" } else { "" }));
     let config = Config::load();
 
     let app = tauri::Builder::default()
         // Must be first: a second launch just opens the settings of the running one.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| open_settings(app, None)))
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![dwbar_core::startup::ARG])))
         .manage(AppState::new(config))
         .invoke_handler(tauri::generate_handler![
             get_state,
@@ -536,6 +589,8 @@ fn main() {
             start_watcher(&handle);
             apply_style(handle.state::<AppState>().inner.lock().unwrap().config.style.clone());
             start_quota_thread(&handle);
+            let autostart = handle.state::<AppState>().inner.lock().unwrap().config.autostart;
+            sync_autostart(&handle, autostart);
             Ok(())
         })
         .build(tauri::generate_context!())

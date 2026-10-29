@@ -1,4 +1,5 @@
 import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS } from "./common.js";
+import { applyMaterial } from "./material.js";
 
 let state = null;
 let focusAgent = null;
@@ -42,6 +43,7 @@ function render() {
   if (!state) return;
   applyTheme(state.config.theme);
   applyIconStyle(state.config.icon_style);
+  applyMaterial(state.config.material, { theme: state.config.theme, blur: true, platform: state.platform, round: state.round_corners });
   const shown = state.quotas.filter((q) => q.installed);
   const newest = Math.max(0, ...state.quotas.filter((q) => q.ok).map((q) => q.updated));
   $("#sub").textContent = `${shown.length} 個 AI${newest ? ` · 上次更新 ${new Date(newest * 1000).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false })}` : ""}`;

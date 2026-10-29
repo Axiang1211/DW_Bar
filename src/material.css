@@ -1,0 +1,105 @@
+/* Background materials (外觀 → 背景材質), shared by the panel, hover card and capsule.
+   The page sets data-material / data-ink / data-blur and --m-bg on <html> (material.js).
+   `.surface` is the panel, the hover card and the capsule pill. */
+
+/* ── text ink: light text on dark materials, dark text on light ones ── */
+[data-material][data-ink="light"] {
+  --fg: #f6f4fa; --fg-2: rgba(246, 244, 250, 0.74); --fg-3: rgba(246, 244, 250, 0.52);
+  --line: rgba(255, 255, 255, 0.16); --card: rgba(255, 255, 255, 0.08); --track: rgba(255, 255, 255, 0.18);
+  --ok: #3ccf6e; --warn: #f0b03c; --crit: #f06450; --weekly: #a49cff;
+  --pill-line: rgba(255, 255, 255, 0.16);
+}
+[data-material][data-ink="dark"] {
+  --fg: #15131c; --fg-2: rgba(21, 19, 28, 0.72); --fg-3: rgba(21, 19, 28, 0.52);
+  --line: rgba(21, 19, 28, 0.13); --card: rgba(255, 255, 255, 0.42); --track: rgba(21, 19, 28, 0.14);
+  --ok: #17904a; --warn: #b5730b; --crit: #c8372a; --weekly: #5548df;
+  --pill-line: rgba(21, 19, 28, 0.12);
+}
+
+/* ── frosted glass (毛玻璃): the OS adds blur + grain behind; a soft tint on top ── */
+[data-material="frosted"][data-ink="light"] .surface { background: rgba(22, 22, 32, 0.52); }
+[data-material="frosted"][data-ink="dark"] .surface { background: rgba(250, 250, 255, 0.56); }
+[data-material="frosted"] .surface { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 44px -18px rgba(0, 0, 0, 0.55); }
+[data-material="frosted"] .cap.surface { box-shadow: inset 0 0 0 1px var(--pill-line); }
+
+/* ── liquid glass (液態玻璃): almost clear, light blur, specular rim and a refractive edge ── */
+[data-material="liquid"] .surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 36%, rgba(255, 255, 255, 0.02) 64%, rgba(255, 255, 255, 0.12) 100%),
+    var(--liquid-tint);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0.5px rgba(255, 255, 255, 0.28),
+    inset 10px 12px 22px -16px rgba(255, 255, 255, 0.55),
+    inset -12px -14px 26px -18px rgba(130, 190, 255, 0.45),
+    inset 14px -10px 26px -20px rgba(255, 150, 210, 0.3),
+    0 18px 44px -20px rgba(0, 0, 0, 0.5);
+}
+[data-material="liquid"][data-ink="light"] { --liquid-tint: rgba(18, 18, 28, 0.26); --card: rgba(255, 255, 255, 0.07); }
+[data-material="liquid"][data-ink="dark"] { --liquid-tint: rgba(255, 255, 255, 0.46); --card: rgba(255, 255, 255, 0.3); }
+/* Text sits on whatever is behind the glass: keep it legible. */
+[data-material="liquid"][data-ink="light"] .surface { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+[data-material="liquid"][data-ink="dark"] .surface { text-shadow: 0 0 6px rgba(255, 255, 255, 0.7), 0 1px 1px rgba(255, 255, 255, 0.6); }
+[data-material="liquid"] .mc {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+[data-material="liquid"] .cap.surface {
+  box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 -4px 8px -6px rgba(130, 190, 255, 0.6);
+}
+
+/* ── custom colour and gradients ── */
+[data-material="color"] .surface,
+[data-material="gradient"] .surface {
+  background: var(--m-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 18px 44px -18px rgba(0, 0, 0, 0.55);
+}
+[data-material="color"] .cap.surface,
+[data-material="gradient"] .cap.surface { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 0 0 1px var(--pill-line); }
+
+/* ── liquid metal: polished bands and a slow travelling highlight ── */
+[data-material="metal"] .surface {
+  background: var(--m-bg);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.1),
+    0 18px 44px -18px rgba(0, 0, 0, 0.6);
+  animation: metal-sheen 9s ease-in-out infinite alternate;
+}
+[data-material="metal"][data-ink="dark"] .surface { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); }
+[data-material="metal"][data-ink="light"] .surface { text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.5); border-color: rgba(255, 255, 255, 0.22); }
+/* Cards are engraved into the metal. */
+[data-material="metal"][data-ink="dark"] { --card: rgba(255, 255, 255, 0.3); }
+[data-material="metal"][data-ink="light"] { --card: rgba(0, 0, 0, 0.24); }
+[data-material="metal"] .mc { box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(255, 255, 255, 0.45); border-color: rgba(0, 0, 0, 0.08); }
+/* The capsule is always on screen: keep it still. */
+[data-material="metal"] .cap.surface { animation: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(0, 0, 0, 0.3); }
+@keyframes metal-sheen {
+  from { background-position: 0% 0, 0 0; }
+  to { background-position: 100% 0, 0 0; }
+}
+
+/* ── the OS blurs behind this window: no shadow margin, corners match the OS ── */
+[data-blur] .wrap { padding: 0; }
+[data-blur] .panel, [data-blur] .card { border-radius: var(--blur-r, 8px); animation: none; }
+[data-blur] .surface { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+[data-blur][data-material="liquid"] .surface {
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0.5px rgba(255, 255, 255, 0.28),
+    inset 10px 12px 22px -16px rgba(255, 255, 255, 0.55),
+    inset -12px -14px 26px -18px rgba(130, 190, 255, 0.45),
+    inset 14px -10px 26px -20px rgba(255, 150, 210, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-material="metal"] .surface { animation: none; }
+}
+
+/* Accent (links, focus ring) readable on any material. */
+[data-material][data-ink="light"] { --accent: #ffb59f; }
+[data-material][data-ink="dark"] { --accent: #b3361c; }
+[data-material][data-ink="light"] .btn { color: #2a1610; }

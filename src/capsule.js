@@ -1,4 +1,5 @@
 import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme, applyIconStyle } from "./common.js";
+import { applyMaterial } from "./material.js";
 
 const cap = $("#cap");
 let lastSize = "";
@@ -28,6 +29,7 @@ function render(state) {
   last = state;
   applyTheme(state.config.theme);
   applyIconStyle(state.config.icon_style);
+  applyMaterial(state.config.material, { theme: state.config.theme });
   let pos = state.config.position || "taskbar";
   // Off Windows there is no taskbar: the centre cell is a floating capsule above the Dock.
   if (pos === "taskbar" && state.platform && state.platform !== "windows") pos = "b";

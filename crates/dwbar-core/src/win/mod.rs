@@ -3,6 +3,8 @@
 //!
 //! Thread rules (spec §6): the watcher thread only *detects*; every change to a
 //! window is done by the app on its UI thread.
+pub mod autostart;
+pub mod backdrop;
 pub mod embed;
 pub mod fullscreen;
 pub mod styler;

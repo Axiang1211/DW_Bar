@@ -12,6 +12,7 @@ pub mod layout;
 pub mod locate;
 pub mod log;
 pub mod quota;
+pub mod startup;
 pub mod style;
 
 #[cfg(any(windows, feature = "lint-win"))]

@@ -1,4 +1,5 @@
 import { $, invoke, listen, left, level, applyTheme, resetText, untilText } from "./common.js";
+import { applyMaterial } from "./material.js";
 
 let state = null;
 let agent = null;
@@ -7,6 +8,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 function render() {
   if (!state || !agent) return;
   applyTheme(state.config.theme);
+  applyMaterial(state.config.material, { theme: state.config.theme, blur: true, platform: state.platform, round: state.round_corners });
   const q = state.quotas.find((x) => x.agent === agent);
   if (!q) return;
   const pos = state.config.position || "taskbar";

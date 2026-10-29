@@ -4,7 +4,7 @@
 
 外圈上半弧是 **5 小時額度**，內圈是 **每週額度**，綠／黃／紅代表剩多少。滑鼠移到圖示上會跳出用量小卡（5 小時、每週、餘額），點一下開設定。
 
-> 目前版本 **v0.8**：新增 **Mac 版（DMG，Apple 晶片＋Intel）** 與 **Windows ARM64 版**，網站自動推薦適合的版本；新標誌、官方網站 [dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)、半透明視窗開關；各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
+> 目前版本 **v0.9**：新增 **背景材質**（毛玻璃、液態玻璃、純色、漸層、液態金屬），修正開機自動啟動；v0.8：新增 **Mac 版（DMG，Apple 晶片＋Intel）** 與 **Windows ARM64 版**，網站自動推薦適合的版本；新標誌、官方網站 [dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)、半透明視窗開關；各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
 
 ## 下載安裝（不用裝任何開發工具）
 

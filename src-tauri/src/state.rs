@@ -33,6 +33,8 @@ pub struct Inner {
     pub quitting: bool,
     /// Hovered ring, in screen px, while the usage card is up.
     pub tip_anchor: Option<Rect>,
+    /// Start-at-login is on, but switched off in Task Manager → Startup apps.
+    pub autostart_blocked: bool,
 }
 
 pub struct AppState {
@@ -54,6 +56,7 @@ impl AppState {
                 placement: Placement::default(),
                 quitting: false,
                 tip_anchor: None,
+                autostart_blocked: false,
             }),
             refresh_now: Mutex::new(None),
         }
@@ -73,6 +76,9 @@ pub struct Snapshot {
     pub platform: &'static str,
     pub log_path: String,
     pub config_path: String,
+    pub autostart_blocked: bool,
+    /// Windows 11 rounds the blurred popups (8 px); Windows 10 keeps them square.
+    pub round_corners: bool,
 }
 
 impl Inner {
@@ -87,6 +93,18 @@ impl Inner {
             platform: std::env::consts::OS,
             log_path: dwbar_core::log::path().display().to_string(),
             config_path: Config::path().display().to_string(),
+            autostart_blocked: self.autostart_blocked && self.config.autostart,
+            round_corners: round_corners(),
         }
     }
+}
+
+fn round_corners() -> bool {
+    #[cfg(windows)]
+    {
+        static WIN11: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *WIN11.get_or_init(dwbar_core::win::taskbar::is_windows_11)
+    }
+    #[cfg(not(windows))]
+    true
 }

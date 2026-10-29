@@ -72,6 +72,59 @@ pub enum Theme {
     Light,
 }
 
+/// Background of the panel, hover card and capsule (外觀 → 背景材質).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Material {
+    /// default / frosted (毛玻璃) / liquid (液態玻璃) / color / gradient / metal.
+    pub kind: String,
+    /// `color`: the colour, `#rrggbb`.
+    pub color: String,
+    /// `color` and `gradient`: 20..=100 %. Below 95 the desktop behind is blurred.
+    pub opacity: u8,
+    /// `gradient`: preset id, or "custom" for `colors` + `angle`.
+    pub gradient: String,
+    pub colors: [String; 2],
+    pub angle: u16,
+    /// `metal`: silver / gold / rose / titanium / holo.
+    pub metal: String,
+}
+
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            kind: "default".into(),
+            color: "#3d8bff".into(),
+            opacity: 85,
+            gradient: "aurora".into(),
+            colors: ["#5b8cff".into(), "#c86bff".into()],
+            angle: 135,
+            metal: "silver".into(),
+        }
+    }
+}
+
+/// What the OS should draw behind a material (the page draws the rest).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Backdrop {
+    None,
+    /// Light blur, no grain: liquid glass.
+    Blur,
+    /// Acrylic: blur + grain, frosted glass.
+    Acrylic,
+}
+
+impl Material {
+    pub fn backdrop(&self) -> Backdrop {
+        match self.kind.as_str() {
+            "frosted" => Backdrop::Acrylic,
+            "liquid" => Backdrop::Blur,
+            "color" | "gradient" if self.opacity < 95 => Backdrop::Acrylic,
+            _ => Backdrop::None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AgentConfig {
@@ -106,6 +159,8 @@ pub struct Config {
     pub show_percent: bool,
     /// Logo style inside the rings: mono / neon / acrylic / pixel / color.
     pub icon_style: String,
+    /// Background of the panel, hover card and capsule.
+    pub material: Material,
     /// Hide while a fullscreen app, game or presentation is in front.
     pub hide_fullscreen: bool,
     /// Minutes between quota refreshes (clamped 2..=60).
@@ -194,6 +249,7 @@ impl Default for Config {
             theme: Theme::Auto,
             show_percent: false,
             icon_style: "mono".into(),
+            material: Material::default(),
             hide_fullscreen: true,
             refresh_minutes: 5,
             autostart: false,
@@ -267,6 +323,8 @@ impl Config {
     pub fn clamp(&mut self) {
         self.refresh_minutes = self.refresh_minutes.clamp(2, 60);
         self.offset_x = self.offset_x.clamp(-2000, 2000);
+        self.material.opacity = self.material.opacity.clamp(20, 100);
+        self.material.angle %= 360;
     }
 }
 
@@ -292,6 +350,19 @@ mod tests {
         assert_eq!(Config::default().position, Position::Taskbar);
         assert_eq!(Config::default().slot, Slot::Auto);
         assert_eq!(serde_json::to_value(Position::Left).unwrap(), "l");
+    }
+
+    #[test]
+    fn material_backdrop() {
+        let m = |kind: &str, opacity: u8| Material { kind: kind.into(), opacity, ..Material::default() };
+        assert_eq!(m("default", 85).backdrop(), Backdrop::None);
+        assert_eq!(m("frosted", 85).backdrop(), Backdrop::Acrylic);
+        assert_eq!(m("liquid", 100).backdrop(), Backdrop::Blur);
+        assert_eq!(m("color", 60).backdrop(), Backdrop::Acrylic);
+        assert_eq!(m("gradient", 100).backdrop(), Backdrop::None);
+        assert_eq!(m("metal", 50).backdrop(), Backdrop::None);
+        let old: Config = serde_json::from_str("{}").unwrap();
+        assert_eq!(old.material.kind, "default");
     }
 
     #[test]

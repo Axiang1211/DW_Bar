@@ -1,6 +1,7 @@
 import {
   $, $$, invoke, listen, ringSVG, left, win, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS,
 } from "./common.js";
+import { KINDS, GRADIENTS, METALS, applyMaterial, osBlurs, prefersDark } from "./material.js";
 
 let state = null;
 let config = null;
@@ -71,6 +72,7 @@ function bindControls() {
   );
   $("#refreshMin").addEventListener("change", (e) => save({ refresh_minutes: parseInt(e.target.value, 10) }));
   bindStyle();
+  bindMaterial();
   $("#widgetsToggle").addEventListener("change", async (e) => {
     const show = e.target.checked;
     try {
@@ -118,6 +120,7 @@ function syncControls() {
   if (document.activeElement !== $("#offset")) $("#offset").value = config.offset_x;
   $("#refreshMin").value = String(config.refresh_minutes);
   syncStyle();
+  syncMaterial();
   $("#widgetsToggle").checked = !!state.placement.widgets;
 }
 
@@ -131,6 +134,98 @@ function bindStyle() {
 }
 function syncStyle() {
   $("#translucent").checked = !!config.style?.enabled;
+}
+
+// ───────── 背景材質 ─────────
+const MAT_DESC = {
+  default: "原本的深色／淺色面板，跟著上面的主題切換。",
+  frosted: "毛玻璃：後方的桌面會模糊並加上細緻顆粒，文字顏色跟著主題。",
+  liquid: "液態玻璃：幾乎透明，只輕微模糊，邊緣有高光和折射色。",
+  color: "純色：選一個顏色和不透明度，文字會自動選擇深色或淺色。",
+  gradient: "漸層：選一組配色，或自訂兩個顏色和角度。",
+  metal: "液態金屬：拋光金屬的光澤，面板打開時高光會緩慢流動。",
+};
+const mat = () => ({ kind: "default", color: "#3d8bff", opacity: 85, gradient: "aurora", colors: ["#5b8cff", "#c86bff"], angle: 135, metal: "silver", ...(config.material || {}) });
+// Preview while dragging a slider; save when it is let go.
+let matDraft = null;
+function saveMaterial(patch, { draft = false } = {}) {
+  const m = { ...mat(), ...patch };
+  if (draft) {
+    matDraft = m;
+    previewMaterial(m);
+    return;
+  }
+  matDraft = null;
+  save({ material: m });
+  syncMaterial();
+}
+function scopeMaterial(el, m) {
+  applyMaterial(m, { theme: config.theme, target: el });
+  el.classList.toggle("light", !prefersDark(config.theme));
+  if (osBlurs(m)) el.dataset.simblur = "1";
+  else delete el.dataset.simblur;
+}
+function previewMaterial(m) {
+  scopeMaterial($("#matScope"), m);
+  $("#matOpVal").textContent = `${m.opacity}%`;
+  $("#matAngleVal").textContent = `${m.angle}°`;
+}
+function bindMaterial() {
+  $("#matTiles").innerHTML = KINDS.map(
+    ([k, name]) => `<button class="mt" role="radio" data-kind="${k}"><span class="mt-wall"><span class="mt-scope mp-scope"><span class="mt-chip surface"></span></span></span>${name}</button>`,
+  ).join("");
+  $("#matGrads").innerHTML =
+    Object.entries(GRADIENTS)
+      .map(([id, g]) => `<button class="sw-btn" data-grad="${id}"><i style="background:linear-gradient(135deg,${g.stops.join(",")})"></i>${g.name}</button>`)
+      .join("") + `<button class="sw-btn" data-grad="custom"><i>＋</i>自訂</button>`;
+  $("#matMetals").innerHTML = Object.entries(METALS)
+    .map(([id, m]) => `<button class="sw-btn" data-metal="${id}"><i style="background:linear-gradient(135deg,${m.stops.join(",")})"></i>${m.name}</button>`)
+    .join("");
+  $("#matBrand").innerHTML = ringSVG("dw", { ok: true, windows: [{ period: "five_hour", used_percent: 36 }, { period: "week", used_percent: 28 }] });
+  $("#matRing").innerHTML = ringSVG("claude", { ok: true, windows: [{ period: "five_hour", used_percent: 20 }, { period: "week", used_percent: 34 }] });
+  $("#matTiles").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-kind]");
+    if (t) saveMaterial({ kind: t.dataset.kind });
+  });
+  $("#matGrads").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-grad]");
+    if (b) saveMaterial({ gradient: b.dataset.grad });
+  });
+  $("#matMetals").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-metal]");
+    if (b) saveMaterial({ metal: b.dataset.metal });
+  });
+  const live = (id, key, parse) => {
+    const el = $(id);
+    el.addEventListener("input", () => saveMaterial(key(parse(el.value)), { draft: true }));
+    el.addEventListener("change", () => saveMaterial(key(parse(el.value))));
+  };
+  live("#matColor", (v) => ({ color: v }), String);
+  live("#matOpacity", (v) => ({ opacity: v }), (v) => parseInt(v, 10));
+  live("#matAngle", (v) => ({ angle: v }), (v) => parseInt(v, 10));
+  live("#matC1", (v) => ({ colors: [v, (matDraft || mat()).colors[1]] }), String);
+  live("#matC2", (v) => ({ colors: [(matDraft || mat()).colors[0], v] }), String);
+}
+function syncMaterial() {
+  const m = matDraft || mat();
+  $$("#matTiles .mt").forEach((t) => {
+    const k = t.dataset.kind;
+    t.setAttribute("aria-checked", String(m.kind === k));
+    // Each tile shows its material with the current colour / gradient / metal.
+    scopeMaterial($(".mt-scope", t), { ...m, kind: k });
+  });
+  $$(".mo").forEach((el) => (el.hidden = !el.dataset.mat.split(" ").includes(m.kind)));
+  $("#matCustom").hidden = m.gradient !== "custom";
+  $$("#matGrads [data-grad]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.grad === m.gradient)));
+  $$("#matMetals [data-metal]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.metal === m.metal)));
+  $("#matDesc").textContent = MAT_DESC[m.kind] || "";
+  const set = (id, v) => document.activeElement !== $(id) && ($(id).value = v);
+  set("#matColor", m.color);
+  set("#matOpacity", m.opacity);
+  set("#matAngle", m.angle);
+  set("#matC1", m.colors[0]);
+  set("#matC2", m.colors[1]);
+  previewMaterial(m);
 }
 
 // ───────── 位置（九宮格） ─────────
@@ -362,6 +457,7 @@ function renderAll() {
   applyTheme(config.theme);
   applyIconStyle(config.icon_style);
   $("#ver").textContent = "v" + state.version;
+  $("#autostartNote").hidden = !state.autostart_blocked;
   syncControls();
   renderUsage();
   renderAgents();
