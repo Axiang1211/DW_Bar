@@ -21,8 +21,10 @@ function card(q) {
   let body;
   if (q.ok && main) {
     const rows = [];
-    if (s && l) rows.push(`<div><dt><i class="sw" style="background:var(--weekly)"></i>${esc(tb(l.label))}</dt><dd>${t("剩 {n}%", { n: Math.round(left(l)) })}</dd></div>`);
-    for (const w of q.windows.filter((w) => w !== s && w !== l)) rows.push(`<div><dt>${esc(tb(w.label))}</dt><dd>${t("剩 {n}%", { n: Math.round(left(w)) })}</dd></div>`);
+    // Small reset time beside each secondary window (e.g. the weekly one).
+    const when = (w) => (w.resets_at ? `<small>${esc(t("{time} 重置", { time: resetText(w.resets_at) }))}</small>` : "");
+    if (s && l) rows.push(`<div><dt><i class="sw" style="background:var(--weekly)"></i><span>${esc(tb(l.label))}</span></dt><dd>${when(l)}${t("剩 {n}%", { n: Math.round(left(l)) })}</dd></div>`);
+    for (const w of q.windows.filter((w) => w !== s && w !== l)) rows.push(`<div><dt><span>${esc(tb(w.label))}</span></dt><dd>${when(w)}${t("剩 {n}%", { n: Math.round(left(w)) })}</dd></div>`);
     if (main.resets_at) rows.push(`<div><dt>${t("重置")}</dt><dd>${t("{time}（還有 {left}）", { time: resetText(main.resets_at), left: untilText(main.resets_at) })}</dd></div>`);
     rows.push(`<div><dt>${t("餘額")}</dt><dd>${esc(tb(q.balance) || "—")}</dd></div>`);
     body = `<div class="mc-big"><b>${Math.round(r)}%</b><small>${esc(t("{label} 剩餘", { label: tb(main.label) }))}</small></div><dl class="mc-rows">${rows.join("")}</dl>`;

@@ -109,8 +109,23 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          # Run a tool; on failure show its output as an error annotation (readable without logs).
+          function Run($exe) {
+            $out = & $exe @args 2>&1 | Out-String
+            Write-Host $out
+            if ($LASTEXITCODE) {
+              $msg = ("$(Split-Path $exe -Leaf) failed ($LASTEXITCODE): " + ($out.Trim() -split "`n" | Select-Object -Last 25) -join "%0A")
+              Write-Host "::error::$msg"
+              exit 1
+            }
+          }
           $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version + ".0"
-          $sdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64" | Sort-Object Name -Descending | Select-Object -First 1
+          # The newest SDK bin\<version>\x64 folder that has the packaging tools.
+          $sdk = Get-Item "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64" |
+            Where-Object { Test-Path (Join-Path $_.FullName "makeappx.exe") } |
+            Sort-Object { [version]$_.Parent.Name } -Descending | Select-Object -First 1
+          if (-not $sdk) { Write-Host "::error::Windows SDK packaging tools not found"; exit 1 }
+          Write-Host "SDK: $($sdk.FullName)"
           $makeappx = Join-Path $sdk.FullName "makeappx.exe"
           $makepri = Join-Path $sdk.FullName "makepri.exe"
           $signtool = Join-Path $sdk.FullName "signtool.exe"
@@ -122,14 +137,11 @@ jobs:
             Copy-Item -Recurse msix/Assets "$layout/Assets"
             (Get-Content msix/AppxManifest.xml -Raw).Replace("__VERSION__", $version).Replace("__ARCH__", $arch) |
               Set-Content "$layout/AppxManifest.xml" -Encoding utf8
-            & $makepri createconfig /cf "priconfig-$arch.xml" /dq en-US /pv 10.0.0 /o
-            & $makepri new /pr $layout /cf "priconfig-$arch.xml" /mn "$layout/AppxManifest.xml" /of "$layout/resources.pri" /o
-            if ($LASTEXITCODE) { throw "makepri failed" }
-            & $makeappx pack /d $layout /p "bundle/DW-Bar-$arch.msix" /o
-            if ($LASTEXITCODE) { throw "makeappx pack failed" }
+            Run $makepri createconfig /cf "priconfig-$arch.xml" /dq en-US /pv 10.0.0 /o
+            Run $makepri new /pr $layout /cf "priconfig-$arch.xml" /mn "$layout/AppxManifest.xml" /of "$layout/resources.pri" /o
+            Run $makeappx pack /d $layout /p "bundle/DW-Bar-$arch.msix" /o
           }
-          & $makeappx bundle /d bundle /p out/DW-Bar.msixbundle /bv $version /o
-          if ($LASTEXITCODE) { throw "makeappx bundle failed" }
+          Run $makeappx bundle /d bundle /p out/DW-Bar.msixbundle /bv $version /o
 
           # Test copy: self-signed with the Store publisher name, so it installs side by side
           # with nothing else changed. Trust DW-Bar-test.cer first (see the README).
@@ -141,8 +153,7 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath test.pfx -Password $pw | Out-Null
           Export-Certificate -Cert $cert -FilePath out/DW-Bar-test.cer | Out-Null
           Copy-Item out/DW-Bar.msixbundle out/DW-Bar-test.msixbundle
-          & $signtool sign /fd SHA256 /f test.pfx /p dwbar-test out/DW-Bar-test.msixbundle
-          if ($LASTEXITCODE) { throw "signtool failed" }
+          Run $signtool sign /fd SHA256 /f test.pfx /p dwbar-test out/DW-Bar-test.msixbundle
           Get-ChildItem out | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:

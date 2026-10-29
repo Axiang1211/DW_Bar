@@ -57,6 +57,11 @@ html, body { margin: 0; background: transparent; overflow: hidden; font: 13px/1.
 .mc-rows div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
 .mc-rows dt { color: var(--fg-2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .mc-rows dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The label gives way (…) so the numbers always fit. */
+.mc-rows dt { min-width: 0; }
+.mc-rows dt span { overflow: hidden; text-overflow: ellipsis; }
+.mc-rows dd { flex: none; max-width: 75%; }
+.mc-rows dd small { font-size: 10.5px; font-weight: 500; color: var(--fg-3); margin-right: 6px; }
 .sw { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
 .mc-note { color: var(--fg-2); font-size: 12px; margin-top: 4px; }
 .mc-act { margin-top: 8px; }
