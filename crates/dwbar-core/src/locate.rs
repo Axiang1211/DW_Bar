@@ -22,6 +22,15 @@ fn known_dirs() -> Vec<PathBuf> {
         dirs.push(home.join(".cargo").join("bin"));
         dirs.push(home.join("scoop").join("shims"));
     }
+    if cfg!(target_os = "macos") {
+        dirs.push(PathBuf::from("/opt/homebrew/bin"));
+        dirs.push(PathBuf::from("/usr/local/bin"));
+        if let Some(home) = env("HOME") {
+            dirs.push(home.join(".npm-global").join("bin"));
+            dirs.push(home.join(".bun").join("bin"));
+            dirs.push(home.join("Library").join("pnpm"));
+        }
+    }
     if let Some(appdata) = env("APPDATA") {
         dirs.push(appdata.join("npm")); // npm -g on Windows
     }

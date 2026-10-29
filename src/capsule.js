@@ -28,7 +28,9 @@ function render(state) {
   last = state;
   applyTheme(state.config.theme);
   applyIconStyle(state.config.icon_style);
-  const pos = state.config.position || "taskbar";
+  let pos = state.config.position || "taskbar";
+  // Off Windows there is no taskbar: the centre cell is a floating capsule above the Dock.
+  if (pos === "taskbar" && state.platform && state.platform !== "windows") pos = "b";
   const vertical = pos === "l" || pos === "r";
   const corner = CORNERS.includes(pos);
   document.body.className = [

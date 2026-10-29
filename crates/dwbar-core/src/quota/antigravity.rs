@@ -112,7 +112,9 @@ pub fn read() -> Reading {
     }
     #[cfg(not(windows))]
     {
-        Reading::failed("antigravity", NAME, "目前只支援 Windows")
+        let mut r = Reading::failed("antigravity", NAME, "Antigravity 用量目前只支援 Windows 版");
+        r.installed = false;
+        r
     }
 }
 

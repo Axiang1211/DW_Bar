@@ -78,6 +78,13 @@ pub fn detect() -> Detected {
     if let Some(p) = env_path("ProgramData") {
         names_in(&p.join("Microsoft").join("Windows").join("Start Menu").join("Programs"), 3, &mut names);
     }
+    // macOS: /Applications and ~/Applications (Chrome web apps live in ~/Applications/Chrome Apps.localized).
+    if cfg!(target_os = "macos") {
+        names_in(Path::new("/Applications"), 1, &mut names);
+        if let Some(home) = env_path("HOME") {
+            names_in(&home.join("Applications"), 2, &mut names);
+        }
+    }
     let mut found = BTreeSet::new();
     for (agent, needles) in NEEDLES {
         if names.iter().any(|n| matches(agent, needles, n)) {
@@ -112,8 +119,22 @@ pub fn bundled_engines(command: &str) -> Vec<PathBuf> {
             if let Some(p) = roaming.as_ref().and_then(|r| newest_in(&r.join("Claude").join("claude-code"), "claude.exe")) {
                 out.push(p);
             }
+            if let Some(home) = env_path("HOME").filter(|_| cfg!(target_os = "macos")) {
+                let dir = home.join("Library").join("Application Support").join("Claude").join("claude-code");
+                if let Some(p) = newest_in(&dir, "claude") {
+                    out.push(p);
+                }
+            }
         }
         "codex" => {
+            if cfg!(target_os = "macos") {
+                for app in ["/Applications/Codex.app", "/Applications/ChatGPT.app"] {
+                    let p = Path::new(app).join("Contents").join("Resources").join("codex");
+                    if p.is_file() {
+                        out.push(p);
+                    }
+                }
+            }
             if let Some(l) = &local {
                 // Store builds copy their runtime to OpenAI\Codex\bin\<hash>\.
                 if let Some(p) = newest_in(&l.join("OpenAI").join("Codex").join("bin"), "codex.exe") {

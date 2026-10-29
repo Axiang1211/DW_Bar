@@ -19,10 +19,19 @@ pub mod win;
 
 /// `%LOCALAPPDATA%\DWBar` (falls back to the temp dir off Windows, for tests).
 pub fn data_dir() -> std::path::PathBuf {
-    let base = std::env::var_os("LOCALAPPDATA")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    base.join("DWBar")
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        return std::path::PathBuf::from(local).join("DWBar");
+    }
+    // macOS: ~/Library/Application Support/DWBar; other Unix: ~/.local/share/DWBar.
+    if let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) {
+        let base = if cfg!(target_os = "macos") {
+            home.join("Library").join("Application Support")
+        } else {
+            home.join(".local").join("share")
+        };
+        return base.join("DWBar");
+    }
+    std::env::temp_dir().join("DWBar")
 }
 
 /// Seconds since the Unix epoch.

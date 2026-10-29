@@ -55,6 +55,8 @@ fn build_capsule(app: &AppHandle) {
         .focused(false)
         .visible(false)
         .inner_size(width, 40.0)
+        .always_on_top(cfg!(not(windows)))
+        .visible_on_all_workspaces(cfg!(target_os = "macos"))
         .build();
     match built {
         Ok(win) => {
@@ -146,7 +148,25 @@ fn open_settings(app: &AppHandle, page: Option<&str>) {
 
 pub fn broadcast(app: &AppHandle) {
     let snap = app.state::<AppState>().inner.lock().unwrap().snapshot();
+    #[cfg(target_os = "macos")]
+    menu_bar_text(app, &snap);
     let _ = app.emit("state", &snap);
+}
+
+/// macOS: the menu bar item shows what is left of the tightest 5-hour (or daily) window.
+#[cfg(target_os = "macos")]
+fn menu_bar_text(app: &AppHandle, snap: &Snapshot) {
+    use dwbar_core::quota::Period;
+    let lowest = snap
+        .quotas
+        .iter()
+        .filter(|q| q.ok)
+        .filter_map(|q| q.window(Period::FiveHour).or_else(|| q.window(Period::Day)).or_else(|| q.window(Period::Week)))
+        .map(|w| 100.0 - w.used_percent)
+        .min_by(|a, b| a.total_cmp(b));
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_title(lowest.map(|v| format!("{:.0}%", v.clamp(0.0, 100.0))));
+    }
 }
 
 // ───────────────────────── quota thread ─────────────────────────
@@ -503,6 +523,9 @@ fn main() {
             quit
         ])
         .setup(|app| {
+            // macOS: a menu bar utility — no Dock icon, no app switcher entry.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             let handle = app.handle().clone();
             if let Err(e) = build_tray(&handle) {
                 log::write("app", &format!("tray icon failed: {e}"));

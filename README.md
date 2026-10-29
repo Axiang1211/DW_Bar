@@ -1,21 +1,29 @@
 # DW Bar
 
-把 AI 的額度放在 Windows 工作列上的小膠囊。
+把 AI 的額度放在 Windows 工作列（或 Mac 桌面）上的小膠囊。
 
 外圈上半弧是 **5 小時額度**，內圈是 **每週額度**，綠／黃／紅代表剩多少。滑鼠移到圖示上會跳出用量小卡（5 小時、每週、餘額），點一下開設定。
 
-> 目前版本 **v0.7**：新標誌、官方網站 [dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)、半透明視窗開關；各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
+> 目前版本 **v0.8**：新增 **Mac 版（DMG，Apple 晶片＋Intel）** 與 **Windows ARM64 版**，網站自動推薦適合的版本；新標誌、官方網站 [dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)、半透明視窗開關；各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
 
 ## 下載安裝（不用裝任何開發工具）
 
-到 **[dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)** 按「下載」，或在本專案的 **Releases** 下載 `DW-Bar-Setup.exe`。
+到 **[dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)** 按「下載」（會自動判斷你的電腦），或在本專案的 **Releases** 下載：
 
-1. 執行 `DW-Bar-Setup.exe`（或 `DW-Bar.msi`）
+| 檔案 | 適用 |
+| --- | --- |
+| `DW-Bar-Setup.exe` / `DW-Bar.msi` | Windows 10／11（一般 x64 電腦） |
+| `DW-Bar-Setup-arm64.exe` | Windows on ARM（Snapdragon 等） |
+| `DW-Bar.dmg` | macOS 11 以上（Apple 晶片與 Intel） |
+
+1. Windows 執行安裝檔；Mac 打開 DMG，把 DW Bar 拖進「應用程式」
 2. 打開設定 →「AI 帳號」→ 按想要的 AI 的「連結」按鈕，在跳出的官方登入頁登入
 
 不需要安裝任何命令列工具。
 
 第一次執行，Windows SmartScreen 可能會提示「無法辨識的應用程式」，因為安裝檔還沒有數位簽章：按「其他資訊 → 仍要執行」。
+
+Mac 版還沒有 Apple 開發者簽章：第一次打開被擋時，到「系統設定 → 隱私權與安全性」按「強制打開」；若顯示「已損毀」，在終端機執行 `xattr -cr "/Applications/DW Bar.app"`。Mac 沒有工作列，膠囊會懸浮在畫面上，選單列顯示最低的剩餘百分比；半透明視窗與 Antigravity 目前只支援 Windows。
 
 ## 額度從哪裡來
 
@@ -81,7 +89,7 @@ src-tauri/             Tauri v2 外殼：視窗、系統匣圖示、指令、帳
 index.html             工作列膠囊
 settings.html          設定視窗
 site/                  官方網站 dwbar.app.dreamsworld.top（Cloudflare Pages）
-.github/workflows/     GitHub Actions：Windows 打包與發布 Release
+.github/workflows/     GitHub Actions：Windows x64／ARM64、macOS 打包與發布 Release
 ```
 
 執行緒規則：監看執行緒只負責「偵測」，所有視窗操作都回到 UI 執行緒做。

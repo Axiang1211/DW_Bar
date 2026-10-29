@@ -97,10 +97,58 @@ pub fn apply(app: &AppHandle) {
 
     #[cfg(not(any(windows, feature = "lint-win")))]
     {
-        let s = state.inner.lock().unwrap();
-        let _ = win.set_size(tauri::LogicalSize::new(s.capsule_width, 40.0));
+        // macOS (and other systems): no Windows taskbar, so the capsule is a floating HUD.
+        // The "taskbar" cell of the grid means just above the Dock.
+        use crate::state::Placement;
+        use dwbar_core::{config::Position, layout};
+        let (config, width_logical, height_logical) = {
+            let s = state.inner.lock().unwrap();
+            (s.config.clone(), s.capsule_width, s.capsule_height)
+        };
+        let Some((screen, work, scale)) = monitor_areas(&win) else { return };
+        let pos = if config.position == Position::Taskbar { Position::Bottom } else { config.position };
+        let thick = (layout::HUD_THICKNESS * scale).round() as i32;
+        let (w, h) = if pos.vertical() {
+            (thick, ((height_logical * scale).round() as i32).max(thick))
+        } else {
+            (((width_logical * scale).round() as i32).max(thick), thick)
+        };
+        let rect = layout::place_floating(&work, pos, scale, w, h);
+        let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
+        let _ = win.set_position(tauri::PhysicalPosition::new(rect.left, rect.top));
         let _ = win.show();
+        let mut s = state.inner.lock().unwrap();
+        s.placement = Placement {
+            found_taskbar: false,
+            embedded: false,
+            fallback: false,
+            visible: true,
+            scale,
+            centered: false,
+            widgets: false,
+            taskbar: Some(screen),
+            capsule: Some(rect),
+            work: Some(work),
+            floating: true,
+        };
     }
+}
+
+/// Whole screen, work area (without menu bar / Dock / taskbar) and scale of the window's monitor.
+#[cfg_attr(any(windows, feature = "lint-win"), allow(dead_code))]
+fn monitor_areas(win: &WebviewWindow) -> Option<(dwbar_core::layout::Rect, dwbar_core::layout::Rect, f64)> {
+    use dwbar_core::layout::Rect;
+    let mon = win.current_monitor().ok().flatten().or_else(|| win.primary_monitor().ok().flatten())?;
+    let (p, z) = (mon.position(), mon.size());
+    let screen = Rect::new(p.x, p.y, p.x + z.width as i32, p.y + z.height as i32);
+    let wa = mon.work_area();
+    let work = Rect::new(
+        wa.position.x,
+        wa.position.y,
+        wa.position.x + wa.size.width as i32,
+        wa.position.y + wa.size.height as i32,
+    );
+    Some((screen, if work.is_empty() { screen } else { work }, mon.scale_factor()))
 }
 
 /// Cheap periodic upkeep: keep z-order above the taskbar content and follow
@@ -172,9 +220,16 @@ pub fn show_tip(app: &AppHandle, w_logical: f64, h_logical: f64) {
     }
     #[cfg(not(any(windows, feature = "lint-win")))]
     {
-        let _ = (position, placement);
+        use dwbar_core::{config::Position, layout};
+        let screen = monitor_areas(&win).map(|m| m.0).or(placement.taskbar).unwrap_or(layout::Rect::new(0, 0, 1920, 1080));
+        let side = match position {
+            Position::Left => layout::TipSide::Right,
+            Position::Right => layout::TipSide::Left,
+            _ => layout::TipSide::Auto,
+        };
+        let rect = layout::place_tip(&anchor, &screen, side, (8.0 * scale).round() as i32, w, h);
         let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
-        let _ = win.set_position(tauri::PhysicalPosition::new(anchor.left, anchor.top - h - 8));
+        let _ = win.set_position(tauri::PhysicalPosition::new(rect.left, rect.top));
         let _ = win.show();
     }
 }
@@ -221,9 +276,16 @@ pub fn show_panel(app: &AppHandle, w_logical: f64, h_logical: f64) {
     }
     #[cfg(not(any(windows, feature = "lint-win")))]
     {
-        let _ = position;
+        use dwbar_core::{config::Position, layout};
+        let screen = monitor_areas(&win).map(|m| m.0).or(placement.taskbar).unwrap_or(layout::Rect::new(0, 0, 1920, 1080));
+        let side = match position {
+            Position::Left => layout::TipSide::Right,
+            Position::Right => layout::TipSide::Left,
+            _ => layout::TipSide::Auto,
+        };
+        let rect = layout::place_tip(&anchor, &screen, side, (10.0 * scale).round() as i32, w, h);
         let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
-        let _ = win.set_position(tauri::PhysicalPosition::new(anchor.left, anchor.top - h - 10));
+        let _ = win.set_position(tauri::PhysicalPosition::new(rect.left, rect.top));
     }
     let _ = win.show();
     let _ = win.set_focus();

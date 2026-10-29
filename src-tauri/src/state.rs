@@ -69,6 +69,8 @@ pub struct Snapshot {
     pub fullscreen: bool,
     pub placement: Placement,
     pub version: &'static str,
+    /// "windows" / "macos" / "linux": the pages hide options that don't apply.
+    pub platform: &'static str,
     pub log_path: String,
     pub config_path: String,
 }
@@ -82,6 +84,7 @@ impl Inner {
             fullscreen: self.fullscreen,
             placement: self.placement.clone(),
             version: env!("CARGO_PKG_VERSION"),
+            platform: std::env::consts::OS,
             log_path: dwbar_core::log::path().display().to_string(),
             config_path: Config::path().display().to_string(),
         }

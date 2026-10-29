@@ -177,3 +177,7 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
   .hero-art .logo { animation: none; }
   .btn { transition: none; }
 }
+
+.others { margin-top: 4px; }
+.others a { color: var(--ink-2); }
+.others a:hover { color: var(--ink); }

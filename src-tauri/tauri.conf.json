@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DW Bar",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "identifier": "app.dwbar.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,11 +14,16 @@
     "windows": [],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src ipc: http://ipc.localhost"
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi",
+      "dmg"
+    ],
     "publisher": "DW Bar",
     "category": "Utility",
     "shortDescription": "AI 用量膠囊，常駐 Windows 工作列",
@@ -31,15 +36,27 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["TradChinese", "English"],
+        "languages": [
+          "TradChinese",
+          "English"
+        ],
         "displayLanguageSelector": false
       },
       "wix": {
-        "language": ["zh-TW", "en-US"]
+        "language": [
+          "zh-TW",
+          "en-US"
+        ]
       }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
     }
   }
 }

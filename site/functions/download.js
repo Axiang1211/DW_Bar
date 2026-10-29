@@ -1,9 +1,18 @@
-// GET /download → the newest installer, streamed from the latest GitHub release so the
-// browser downloads it straight away on this site (no GitHub page in between).
-const ASSET = "https://github.com/Axiang1211/DW_Bar/releases/latest/download/DW-Bar-Setup.exe";
+// GET /download?os=win-x64|win-arm64|win-msi|mac → the newest installer for that system, streamed
+// from the latest GitHub release so the browser downloads it straight away on this site
+// (no GitHub page in between). Without ?os it serves the Windows x64 installer.
+const BASE = "https://github.com/Axiang1211/DW_Bar/releases/latest/download/";
+const ASSETS = {
+  "win-x64": "DW-Bar-Setup.exe",
+  "win-arm64": "DW-Bar-Setup-arm64.exe",
+  "win-msi": "DW-Bar.msi",
+  mac: "DW-Bar.dmg",
+};
 
-export async function onRequestGet() {
-  const upstream = await fetch(ASSET, {
+export async function onRequestGet({ request }) {
+  const os = new URL(request.url).searchParams.get("os") || "win-x64";
+  const name = ASSETS[os] || ASSETS["win-x64"];
+  const upstream = await fetch(BASE + name, {
     redirect: "follow",
     headers: { "User-Agent": "dwbar-site" },
     cf: { cacheTtl: 600, cacheEverything: true },
@@ -15,8 +24,8 @@ export async function onRequestGet() {
     });
   }
   const headers = new Headers({
-    "Content-Type": "application/octet-stream",
-    "Content-Disposition": 'attachment; filename="DW-Bar-Setup.exe"',
+    "Content-Type": name.endsWith(".dmg") ? "application/x-apple-diskimage" : "application/octet-stream",
+    "Content-Disposition": `attachment; filename="${name}"`,
     "Cache-Control": "public, max-age=600",
     "X-Content-Type-Options": "nosniff",
   });

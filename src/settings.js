@@ -151,8 +151,14 @@ const SLOT_DESC = {
   tray: "一律放在系統匣（時鐘）左邊。",
 };
 
+const onWindows = () => (state?.platform || "windows") === "windows";
+
 function syncPosition() {
   const pos = config.position || "taskbar";
+  if (!onWindows()) {
+    // macOS: no taskbar — the centre cell floats just above the Dock.
+    POSITIONS.taskbar = ["Dock 上方 · 懸浮膠囊", "懸浮在 Dock 正上方中央，跟著你切換的每個桌面空間。"];
+  }
   $$("#posGrid button").forEach((b) => {
     const on = b.dataset.pos === pos;
     b.setAttribute("aria-checked", String(on));
@@ -161,7 +167,7 @@ function syncPosition() {
   });
   $("#posTitle").textContent = POSITIONS[pos][0];
   $("#posDesc").textContent = POSITIONS[pos][1];
-  $("#taskbarRules").hidden = pos !== "taskbar";
+  $("#taskbarRules").hidden = pos !== "taskbar" || !onWindows();
   $("#slotDesc").textContent = SLOT_DESC[config.slot] || "";
 }
 
@@ -349,6 +355,10 @@ function renderIconPreview() {
 
 function renderAll() {
   config = structuredClone(state.config);
+  // Hide options that only exist on Windows (taskbar rules, widgets, translucent windows, …).
+  $$("[data-os=windows]").forEach((el) => {
+    if (!onWindows()) el.hidden = true;
+  });
   applyTheme(config.theme);
   applyIconStyle(config.icon_style);
   $("#ver").textContent = "v" + state.version;
