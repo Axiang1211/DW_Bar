@@ -75,6 +75,7 @@ const LOGOS = {
   cursor: ["https://cursor.com/apple-touch-icon.png", "https://cursor.com/favicon.ico"],
   windsurf: ["https://windsurf.com/apple-touch-icon.png", "https://windsurf.com/favicon.ico"],
   deepseek: ["https://www.deepseek.com/favicon.ico", "https://chat.deepseek.com/favicon.svg"],
+  dw: ["/logo.png"],
 };
 const badLogos = new Set();
 
@@ -118,7 +119,7 @@ export function applyIconStyle(style) {
 function logoHTML(agent) {
   const urls = (LOGOS[agent] || []).filter((u) => !badLogos.has(u));
   if (!urls.length) return "";
-  return `<span class="logo"><img class="logo-img" alt="" draggable="false" referrerpolicy="no-referrer"
+  return `<span class="logo${agent === "dw" ? " own" : ""}"><img class="logo-img" alt="" draggable="false" referrerpolicy="no-referrer"
     src="${urls[0]}" data-alt="${urls.slice(1).join("|")}"></span>`;
 }
 

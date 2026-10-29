@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>隱私權政策｜DW Bar</title>
+  <link rel="icon" href="/favicon.png" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="top"><div class="wrap">
+    <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="38" height="38" />DW Bar</a>
+    <nav class="nav" aria-label="主要"><a href="/#intro">介紹</a><a href="/#how">使用方式</a><a href="/#install">安裝須知</a></nav>
+    <a class="btn small" href="/download">下載</a>
+  </div></header>
+  <main class="legal"><div class="wrap">
+    <h1>隱私權政策</h1>
+    <p class="updated">最後更新：2026 年 10 月 29 日</p>
+    <p>本政策說明 Dreamsworld 夢翔之地（以下稱「我們」）提供的 Windows 程式 DW Bar，以及本網站 dwbar.app.dreamsworld.top，如何處理你的資料。簡單來說：<b>DW Bar 的資料都留在你的電腦裡，我們沒有伺服器接收它們。</b></p>
+
+    <h2>1. DW Bar 在你電腦上保存的資料</h2>
+    <ul>
+      <li><b>設定</b>：位置、外觀、更新頻率、連結了哪些 AI 等，存放在 <code>%LOCALAPPDATA%\DWBar\config.json</code>。</li>
+      <li><b>紀錄檔</b>：程式事件與各 AI 的額度百分比，用來排除問題，存放在 <code>%LOCALAPPDATA%\DWBar\logs\</code>，超過 1 MB 會自動輪替。紀錄檔不包含密碼、登入憑證或對話內容。</li>
+      <li><b>登入狀態</b>：你在 DW Bar 內登入 AI 服務時，該網站的登入 Cookie 與網站資料會由 Microsoft Edge WebView2 存放在 DW Bar 專用的瀏覽器資料夾中，和你平常使用的瀏覽器分開。</li>
+    </ul>
+    <p>以上資料不會被傳送給我們。</p>
+
+    <h2>2. DW Bar 讀取的資料</h2>
+    <p>DW Bar 只讀取各 AI 服務顯示給你本人的<b>用量資訊</b>：剩餘百分比、重置時間、方案名稱、餘額，以及用來辨識帳號的電子郵件。DW Bar 不讀取你的對話、檔案或專案內容，也看不到你的密碼——登入是在 AI 服務的官方網站上完成的。</p>
+
+    <h2>3. DW Bar 會連線的對象</h2>
+    <ul>
+      <li><b>你連結的 AI 服務</b>（例如 claude.ai、chatgpt.com、gemini.google.com、cursor.com、windsurf.com、platform.deepseek.com），用來讀取用量。這些連線與你用瀏覽器開啟該網站相同，受該服務自己的隱私權政策規範。</li>
+      <li><b>Antigravity</b>：只連線到你電腦本機（127.0.0.1）上 Antigravity 自己的服務，不經過網路。</li>
+      <li><b>圖示</b>：圓圈中的 AI 圖示從各服務的官方網站載入；載入失敗時可能改由 Google 的網站圖示服務（www.google.com/s2/favicons）提供。這些網站會收到一般的網路請求資訊（例如 IP 位址）。</li>
+      <li><b>命令列工具</b>：如果你的電腦裝有 Claude Code 或 Codex 的命令列工具，DW Bar 可能在背景執行它們來讀取額度，這些工具依其各自的政策連線。</li>
+    </ul>
+    <p>DW Bar <b>沒有</b>分析、追蹤、廣告或遙測功能，也不會把資料傳給我們或任何第三方。</p>
+
+    <h2>4. 本網站</h2>
+    <p>本網站透過 Cloudflare 提供服務。Cloudflare 可能為了安全與效能處理一般的連線資訊（例如 IP 位址、瀏覽器類型）。下載安裝檔時，檔案由本網站從我們在 GitHub 發布的版本轉送給你。本網站不使用追蹤 Cookie 或第三方分析工具。</p>
+
+    <h2>5. 刪除你的資料</h2>
+    <ul>
+      <li>在 DW Bar 設定 →「AI 帳號」按「清除登入資料」，即可登出所有帳號並刪除保存的登入狀態。</li>
+      <li>解除安裝 DW Bar 後，可以再刪除 <code>%LOCALAPPDATA%\DWBar</code> 與 <code>%LOCALAPPDATA%\app.dwbar.desktop</code> 資料夾，移除所有本機資料。</li>
+    </ul>
+
+    <h2>6. 政策變更</h2>
+    <p>如果本政策有重大變更，我們會更新本頁面上方的日期。</p>
+
+    <h2>7. 聯絡我們</h2>
+    <p>對本政策有任何問題，請透過 <a href="https://dreamsworld.top">Dreamsworld 官方網站</a> 與我們聯絡。</p>
+  </div></main>
+  <footer><div class="wrap"><span>© 2026 Dreamsworld 夢翔之地 · DW Bar</span>
+    <nav aria-label="頁尾"><a href="/privacy">隱私權政策</a><a href="/terms">服務條款</a><a href="/">回首頁</a></nav></div></footer>
+</body>
+</html>

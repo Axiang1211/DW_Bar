@@ -134,13 +134,14 @@ mod tests {
         let cfg = StyleConfig { border: "none".into(), ..Default::default() };
         assert_eq!(effects(&cfg, None).border, COLOR_NONE);
         let cfg = StyleConfig { border: "accent".into(), ..Default::default() };
+        assert_eq!(effects(&StyleConfig::default(), None).border, COLOR_DEFAULT);
         assert_eq!(effects(&cfg, Some(0x123456)).border, 0x123456);
         assert_eq!(effects(&StyleConfig::default(), None).backdrop, 3);
     }
 
     #[test]
     fn who_gets_styled() {
-        let on = StyleConfig { enabled: true, ..Default::default() };
+        let on = StyleConfig { enabled: true, target: StyleTarget::Explorer, ..Default::default() };
         assert!(qualifies(&win("CabinetWClass", "explorer.exe"), &on));
         assert!(!qualifies(&win("Notepad", "notepad.exe"), &on));
         assert!(!qualifies(&win("Shell_TrayWnd", "explorer.exe"), &StyleConfig { target: StyleTarget::All, ..on.clone() }));

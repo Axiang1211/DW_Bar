@@ -26,3 +26,8 @@
 [data-icons="acrylic"] .ring .logo img { opacity: 0.92; }
 /* 像素風：dot matrix */
 [data-icons="pixel"] .ring .logo img { filter: url(#dw-px) contrast(1.2); image-rendering: pixelated; }
+
+/* DW Bar's own mascot logo keeps its colours in every style */
+.ring .logo.own { inset: 21%; background: #fff; box-shadow: none !important; backdrop-filter: none !important; }
+.ring .logo.own::after { display: none; }
+.ring .logo.own img { filter: none !important; image-rendering: auto !important; opacity: 1 !important; }

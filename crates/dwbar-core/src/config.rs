@@ -167,13 +167,13 @@ impl Default for StyleConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            target: StyleTarget::Explorer,
+            target: StyleTarget::All,
             apps: Vec::new(),
             exclude: Vec::new(),
             backdrop: "acrylic".into(),
             titlebar: "auto".into(),
-            corners: "round".into(),
-            border: "accent".into(),
+            corners: "default".into(),
+            border: "default".into(),
             caption: String::new(),
             extend_frame: false,
         }
