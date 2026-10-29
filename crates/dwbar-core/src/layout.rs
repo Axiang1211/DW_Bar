@@ -142,6 +142,42 @@ pub fn place_floating(work: &Rect, pos: Position, scale: f64, w: i32, h: i32) ->
     Rect::new(x, y, x + w, y + h)
 }
 
+/// Which side of the hovered ring the usage card opens on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TipSide {
+    /// Above when the ring is in the lower half of the screen, else below.
+    Auto,
+    /// To the right of the ring (HUD on the left edge).
+    Right,
+    /// To the left of the ring (HUD on the right edge).
+    Left,
+}
+
+/// Screen rect for the hover card (`w` × `h`, physical px) next to `anchor`, kept on `screen`.
+pub fn place_tip(anchor: &Rect, screen: &Rect, side: TipSide, gap: i32, w: i32, h: i32) -> Rect {
+    let clamp_x = |x: i32| x.clamp(screen.left + gap, (screen.right - gap - w).max(screen.left + gap));
+    let clamp_y = |y: i32| y.clamp(screen.top + gap, (screen.bottom - gap - h).max(screen.top + gap));
+    let (x, y) = match side {
+        TipSide::Right => (clamp_x(anchor.right + gap), clamp_y(anchor.top + (anchor.height() - h) / 2)),
+        TipSide::Left => (clamp_x(anchor.left - gap - w), clamp_y(anchor.top + (anchor.height() - h) / 2)),
+        TipSide::Auto => {
+            let x = clamp_x(anchor.left + (anchor.width() - w) / 2);
+            let above = anchor.top - gap - h;
+            let below = anchor.bottom + gap;
+            let lower_half = anchor.top + anchor.height() / 2 > screen.top + screen.height() / 2;
+            let y = if lower_half {
+                if above >= screen.top { above } else { below }
+            } else if below + h <= screen.bottom {
+                below
+            } else {
+                above
+            };
+            (x, y)
+        }
+    };
+    Rect::new(x, y, x + w, y + h)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,6 +246,20 @@ mod tests {
         assert_eq!((r.left, r.top), (18, 366));
         let t = place_floating(&work, Position::Top, 1.0, 200, 44);
         assert_eq!(t.left, 860);
+    }
+
+    #[test]
+    fn tip_placement() {
+        let screen = Rect::new(0, 0, 1920, 1080);
+        // ring on the taskbar → card above it, centred, kept on screen
+        let r = place_tip(&Rect::new(1500, 1040, 1532, 1072), &screen, TipSide::Auto, 8, 260, 150);
+        assert_eq!(r, Rect::new(1386, 882, 1646, 1032));
+        // ring at the top → below
+        let r = place_tip(&Rect::new(10, 12, 42, 44), &screen, TipSide::Auto, 8, 260, 150);
+        assert_eq!((r.left, r.top), (8, 52));
+        // left-edge HUD → to the right
+        let r = place_tip(&Rect::new(12, 500, 56, 544), &screen, TipSide::Right, 8, 260, 150);
+        assert_eq!((r.left, r.top), (64, 447));
     }
 
     #[test]

@@ -31,6 +31,8 @@ pub struct Inner {
     pub fullscreen: bool,
     pub placement: Placement,
     pub quitting: bool,
+    /// Hovered ring, in screen px, while the usage card is up.
+    pub tip_anchor: Option<Rect>,
 }
 
 pub struct AppState {
@@ -51,6 +53,7 @@ impl AppState {
                 fullscreen: false,
                 placement: Placement::default(),
                 quitting: false,
+                tip_anchor: None,
             }),
             refresh_now: Mutex::new(None),
         }

@@ -63,6 +63,7 @@ function render(state) {
         }
       }
       el.addEventListener("click", () => {
+        invoke("hide_tip").catch(() => {});
         if (collapsed) {
           expanded = true;
           armCollapse();
@@ -86,11 +87,26 @@ function text(cls, value) {
   return s;
 }
 
+// Hover card: a separate DW Bar window shows the usage of the ring under the pointer.
+let tipTimer = 0;
+function hoverOn(el, agent) {
+  el.addEventListener("pointerenter", () => {
+    clearTimeout(tipTimer);
+    const r = el.querySelector(".ring").getBoundingClientRect();
+    invoke("show_tip", { agent, left: r.left, top: r.top, width: r.width, height: r.height }).catch(() => {});
+  });
+  el.addEventListener("pointerleave", () => {
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => invoke("hide_tip").catch(() => {}), 120);
+  });
+}
+window.addEventListener("blur", () => invoke("hide_tip").catch(() => {}));
+
 function item(agent, reading, title) {
   const b = document.createElement("button");
   b.className = "item";
-  b.title = title;
   b.setAttribute("aria-label", title.split("\n").join("，"));
+  if (agent !== "dw") hoverOn(b, agent);
   const ring = document.createElement("span");
   ring.className = "ring";
   ring.innerHTML = ringSVG(agent, reading);

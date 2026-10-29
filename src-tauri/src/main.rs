@@ -17,6 +17,7 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 pub const CAPSULE: &str = "capsule";
 pub const SETTINGS: &str = "settings";
+pub const TIP: &str = "tip";
 
 // ───────────────────────── windows ─────────────────────────
 
@@ -65,6 +66,32 @@ fn build_capsule(app: &AppHandle) {
         }
         Err(e) => log::write("app", &format!("capsule window failed: {e}")),
     }
+}
+
+/// The hover usage card: one hidden, click-through, top-most window reused for every ring.
+fn create_tip(app: &AppHandle) {
+    let app = app.clone();
+    off_ui_thread(move || {
+        let built = WebviewWindowBuilder::new(&app, TIP, WebviewUrl::App("tip.html".into()))
+            .title("DW Bar")
+            .decorations(false)
+            .transparent(true)
+            .shadow(false)
+            .skip_taskbar(true)
+            .resizable(false)
+            .focused(false)
+            .visible(false)
+            .always_on_top(true)
+            .inner_size(272.0, 180.0)
+            .build();
+        match built {
+            Ok(win) => {
+                let _ = win.set_ignore_cursor_events(true);
+                let _ = app.run_on_main_thread(move || platform::prepare(&win));
+            }
+            Err(e) => log::write("app", &format!("tip window failed: {e}")),
+        }
+    });
 }
 
 fn open_settings(app: &AppHandle, page: Option<&str>) {
@@ -271,6 +298,39 @@ fn capsule_resize(app: AppHandle, width: f64, height: Option<f64>) {
     platform::apply(&app);
 }
 
+/// The pointer is on a ring: `left/top/width/height` are its box inside the capsule (logical px).
+#[tauri::command]
+async fn show_tip(app: AppHandle, agent: String, left: f64, top: f64, width: f64, height: f64) {
+    {
+        let state = app.state::<AppState>();
+        let mut s = state.inner.lock().unwrap();
+        let Some(cap) = s.placement.capsule else { return };
+        let scale = if s.placement.scale > 0.0 { s.placement.scale } else { 1.0 };
+        let px = |v: f64| (v * scale).round() as i32;
+        s.tip_anchor = Some(dwbar_core::layout::Rect::new(
+            cap.left + px(left),
+            cap.top + px(top),
+            cap.left + px(left + width),
+            cap.top + px(top + height),
+        ));
+    }
+    let _ = app.emit_to(TIP, "tip", agent);
+}
+
+/// The card page measured itself; place and show it.
+#[tauri::command]
+async fn tip_resize(app: AppHandle, width: f64, height: f64) {
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || platform::show_tip(&app2, width, height));
+}
+
+#[tauri::command]
+async fn hide_tip(app: AppHandle) {
+    app.state::<AppState>().inner.lock().unwrap().tip_anchor = None;
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || platform::hide_tip(&app2));
+}
+
 #[tauri::command]
 async fn show_settings(app: AppHandle, page: Option<String>) {
     open_settings(&app, page.as_deref());
@@ -359,6 +419,9 @@ fn main() {
             connect_account,
             disconnect_account,
             set_widgets,
+            show_tip,
+            tip_resize,
+            hide_tip,
             clear_accounts,
             quit
         ])
@@ -368,6 +431,7 @@ fn main() {
                 log::write("app", &format!("tray icon failed: {e}"));
             }
             create_capsule(&handle);
+            create_tip(&handle);
             start_watcher(&handle);
             start_quota_thread(&handle);
             Ok(())
