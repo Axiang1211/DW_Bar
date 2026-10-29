@@ -8,11 +8,11 @@ use std::{fs, path::PathBuf};
 #[serde(rename_all = "snake_case")]
 pub enum Slot {
     /// Windows-widgets rule: centred taskbar → far left; left-aligned → next to the tray.
-    #[default]
     Auto,
     /// Always the far left of the taskbar.
     Left,
-    /// Always just left of the system tray.
+    /// Always just left of the system tray (default).
+    #[default]
     Tray,
 }
 
@@ -55,6 +55,9 @@ impl Default for AgentConfig {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    /// Settings format version, for one-time migrations. Missing (older files) = 0.
+    #[serde(default)]
+    pub version: u32,
     pub slot: Slot,
     pub attach: Attach,
     /// Extra horizontal offset in logical px (e.g. to clear the widgets button).
@@ -75,13 +78,17 @@ pub struct Config {
     pub deepseek: AgentConfig,
 }
 
+/// Current settings format. 1: default position moved back to "left of the tray".
+pub const CONFIG_VERSION: u32 = 1;
+
 /// Every AI DW Bar knows, in display order.
 pub const AGENTS: [&str; 6] = ["claude", "codex", "gemini", "cursor", "windsurf", "deepseek"];
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            slot: Slot::Auto,
+            version: CONFIG_VERSION,
+            slot: Slot::Tray,
             attach: Attach::Embed,
             offset_x: 0,
             theme: Theme::Auto,
@@ -109,8 +116,20 @@ impl Config {
             .ok()
             .and_then(|text| serde_json::from_str(&text).ok())
             .unwrap_or_default();
+        config.migrate();
         config.clamp();
         config
+    }
+
+    /// One-time upgrades of files written by older versions.
+    pub fn migrate(&mut self) {
+        if self.version < 1 {
+            // v0.1–v0.3 saved the then-default "auto"; the default is left of the tray again.
+            if self.slot == Slot::Auto {
+                self.slot = Slot::Tray;
+            }
+        }
+        self.version = CONFIG_VERSION;
     }
 
     pub fn save(&self) -> std::io::Result<()> {
@@ -158,12 +177,23 @@ mod tests {
 
     #[test]
     fn partial_files_fill_in_defaults() {
-        let c: Config = serde_json::from_str(r#"{"slot":"tray","claude":{"enabled":false}}"#).unwrap();
-        assert_eq!(c.slot, Slot::Tray);
+        let c: Config = serde_json::from_str(r#"{"slot":"left","claude":{"enabled":false}}"#).unwrap();
+        assert_eq!(c.slot, Slot::Left);
+        assert_eq!(Config::default().slot, Slot::Tray);
         assert!(!c.claude.enabled);
         assert!(c.codex.enabled);
         assert_eq!(c.refresh_minutes, 5);
         assert!(c.hide_fullscreen);
+    }
+
+    #[test]
+    fn old_files_move_back_to_the_tray() {
+        let mut old: Config = serde_json::from_str(r#"{"slot":"auto"}"#).unwrap();
+        old.migrate();
+        assert_eq!(old.slot, Slot::Tray);
+        let mut chosen: Config = serde_json::from_str(r#"{"version":1,"slot":"auto"}"#).unwrap();
+        chosen.migrate();
+        assert_eq!(chosen.slot, Slot::Auto);
     }
 
     #[test]
