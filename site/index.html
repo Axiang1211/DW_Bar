@@ -232,7 +232,7 @@
     function render() {
       const b = BUILDS[pick];
       document.querySelectorAll("[data-download]").forEach((a) => {
-        a.href = `/download?os=${pick}`;
+        a.href = `/download/${pick}`;
         const label = a.querySelector("[data-label]");
         if (label && !label.dataset.keep) label.textContent = b.label;
       });
@@ -242,7 +242,7 @@
       document.getElementById("version").textContent = meta;
       document.getElementById("version2").textContent = meta;
       const links = OTHERS.filter(([k]) => mobile || k !== pick)
-        .map(([k, n]) => `<a href="/download?os=${k}">${n}</a>`)
+        .map(([k, n]) => `<a href="/download/${k}">${n}</a>`)
         .join(" · ");
       document.getElementById("others").innerHTML = `${mobile ? "下載" : "其他版本"}：${links}`;
       document.getElementById("others2").innerHTML = `${mobile ? "下載" : "其他版本"}：${links}`;
@@ -252,10 +252,21 @@
     detectSync();
     render();
     detectArch().then(render);
+    // Version and sizes: this site's /api/latest, or GitHub's public API if that isn't running.
+    const FILES = { "win-x64": "DW-Bar-Setup.exe", "win-arm64": "DW-Bar-Setup-arm64.exe", mac: "DW-Bar.dmg" };
+    const fromGitHub = () =>
+      fetch("https://api.github.com/repos/Axiang1211/DW_Bar/releases/latest")
+        .then((r) => r.json())
+        .then((rel) => {
+          const s = {};
+          for (const [k, n] of Object.entries(FILES)) s[k] = (rel.assets || []).find((a) => a.name === n)?.size ?? null;
+          return { version: (rel.tag_name || "").replace(/^v/, ""), sizes: s };
+        });
     fetch("/api/latest")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .catch(fromGitHub)
       .then((v) => {
-        if (!v.version) return;
+        if (!v?.version) return;
         version = v.version;
         sizes = v.sizes || { "win-x64": v.size };
         render();

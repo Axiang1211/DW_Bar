@@ -1,4 +1,5 @@
-// GET /download?os=win-x64|win-arm64|win-msi|mac → the newest installer for that system, streamed
+// GET /download/<os> (or /download?os=<os>), os = win-x64 | win-arm64 | win-msi | mac
+// → the newest installer for that system, streamed
 // from the latest GitHub release so the browser downloads it straight away on this site
 // (no GitHub page in between). Without ?os it serves the Windows x64 installer.
 const BASE = "https://github.com/Axiang1211/DW_Bar/releases/latest/download/";
@@ -9,8 +10,11 @@ const ASSETS = {
   mac: "DW-Bar.dmg",
 };
 
-export async function onRequestGet({ request }) {
-  const os = new URL(request.url).searchParams.get("os") || "win-x64";
+export function onRequestGet({ request }) {
+  return serve(new URL(request.url).searchParams.get("os"));
+}
+
+export async function serve(os) {
   const name = ASSETS[os] || ASSETS["win-x64"];
   const upstream = await fetch(BASE + name, {
     redirect: "follow",

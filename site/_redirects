@@ -1,0 +1,9 @@
+# Fallback when Pages Functions are not running (e.g. a dashboard upload or a
+# Workers static-assets deploy): send the browser straight to the installer file.
+# When functions/download*.js are deployed they take precedence and stream the
+# file from this site instead.
+/download            https://github.com/Axiang1211/DW_Bar/releases/latest/download/DW-Bar-Setup.exe        302
+/download/win-x64    https://github.com/Axiang1211/DW_Bar/releases/latest/download/DW-Bar-Setup.exe        302
+/download/win-arm64  https://github.com/Axiang1211/DW_Bar/releases/latest/download/DW-Bar-Setup-arm64.exe  302
+/download/win-msi    https://github.com/Axiang1211/DW_Bar/releases/latest/download/DW-Bar.msi              302
+/download/mac        https://github.com/Axiang1211/DW_Bar/releases/latest/download/DW-Bar.dmg              302
