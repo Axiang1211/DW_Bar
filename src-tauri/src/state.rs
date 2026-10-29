@@ -15,14 +15,19 @@ pub struct Placement {
     pub widgets: bool,
     pub taskbar: Option<Rect>,
     pub capsule: Option<Rect>,
+    /// Work area the floating HUD is placed in.
+    pub work: Option<Rect>,
+    /// Floating HUD (not on the taskbar).
+    pub floating: bool,
 }
 
 pub struct Inner {
     pub config: Config,
     pub quotas: Vec<Reading>,
     pub refreshing: bool,
-    /// Capsule width the page asked for, in logical px.
+    /// Capsule size the page asked for, in logical px.
     pub capsule_width: f64,
+    pub capsule_height: f64,
     pub fullscreen: bool,
     pub placement: Placement,
     pub quitting: bool,
@@ -42,6 +47,7 @@ impl AppState {
                 quotas: Vec::new(),
                 refreshing: false,
                 capsule_width: 96.0,
+                capsule_height: 96.0,
                 fullscreen: false,
                 placement: Placement::default(),
                 quitting: false,

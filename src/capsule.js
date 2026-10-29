@@ -1,44 +1,92 @@
 import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme } from "./common.js";
 
 const cap = $("#cap");
-let lastWidth = 0;
+let lastSize = "";
+let last = null;
+
+// Corners show one ring until clicked, then the whole row; back to one after
+// 2 minutes without the mouse on it (as in the prototype).
+const CORNERS = ["tl", "tr", "bl", "br"];
+let expanded = false;
+let collapseTimer = 0;
+function armCollapse() {
+  clearTimeout(collapseTimer);
+  collapseTimer = setTimeout(() => {
+    expanded = false;
+    if (last) render(last);
+  }, 120_000);
+}
+cap.addEventListener("pointermove", () => expanded && armCollapse());
+
+/** The AI that most needs attention: lowest remaining short-window quota. */
+function mostUrgent(list) {
+  const score = (q) => (q.ok ? left(shortWin(q)) ?? left(longWin(q)) ?? 101 : 102);
+  return [...list].sort((a, b) => score(a) - score(b))[0];
+}
 
 function render(state) {
+  last = state;
   applyTheme(state.config.theme);
-  const shown = state.quotas.filter((q) => q.installed);
+  const pos = state.config.position || "taskbar";
+  const vertical = pos === "l" || pos === "r";
+  const corner = CORNERS.includes(pos);
+  document.body.className = [
+    pos === "taskbar" ? "on-taskbar" : "floating",
+    vertical ? "vertical" : "",
+    `pos-${pos}`,
+  ].join(" ");
+
+  let shown = state.quotas.filter((q) => q.installed);
+  const collapsed = corner && !expanded && shown.length > 1;
+  if (collapsed) shown = [mostUrgent(shown)];
   cap.replaceChildren();
 
   if (!shown.length) {
-    // Nothing detected yet: one brand ring that opens AI detection settings.
-    const b = item("dw", null, state.refreshing && !state.quotas.length ? "正在偵測 AI…" : "DW Bar：點一下連結你的 AI 帳號", "agents");
+    // Nothing detected yet: one brand ring that opens account linking.
+    const b = item("dw", null, state.refreshing && !state.quotas.length ? "正在偵測 AI…" : "DW Bar：點一下連結你的 AI 帳號");
+    b.addEventListener("click", () => invoke("show_settings", { page: "agents" }));
     cap.append(b);
   } else {
-    for (const q of shown) {
-      const el = item(q.agent, q, tooltip(q), q.ok ? "usage" : "agents");
+    shown.forEach((q, i) => {
+      const el = item(q.agent, q, collapsed ? `${tooltip(q)}\n（點一下展開全部）` : tooltip(q));
       if (!q.ok) el.classList.add("off");
+      if (!collapsed && corner) el.style.animationDelay = `${i * 40}ms`;
       if (q.ok && !q.windows.length && q.balance) {
         // Balance-only AIs (DeepSeek API) have no rings to fill; show the balance itself.
-        const p = document.createElement("span");
-        p.className = "pct";
-        p.textContent = q.balance;
-        el.append(p);
-      } else if (state.config.show_percent && q.ok) {
+        if (!vertical) el.append(text("pct", q.balance));
+      } else if (state.config.show_percent && q.ok && !vertical) {
         const r = left(shortWin(q)) ?? left(longWin(q));
         if (r != null) {
-          const p = document.createElement("span");
-          p.className = `pct lv-${level(r)}`;
+          const p = text(`pct lv-${level(r)}`, "");
           p.innerHTML = `${Math.round(r)}<small>%</small>`;
           el.append(p);
         }
       }
+      el.addEventListener("click", () => {
+        if (collapsed) {
+          expanded = true;
+          armCollapse();
+          render(state);
+        } else {
+          invoke("show_settings", { page: q.ok ? "usage" : "agents" });
+        }
+      });
       cap.append(el);
-    }
+    });
+    cap.classList.toggle("expanding", corner && !collapsed);
   }
   cap.classList.toggle("spin", !!state.refreshing && !state.quotas.length);
-  requestAnimationFrame(reportWidth);
+  requestAnimationFrame(reportSize);
 }
 
-function item(agent, reading, title, page) {
+function text(cls, value) {
+  const s = document.createElement("span");
+  s.className = cls;
+  s.textContent = value;
+  return s;
+}
+
+function item(agent, reading, title) {
   const b = document.createElement("button");
   b.className = "item";
   b.title = title;
@@ -47,20 +95,22 @@ function item(agent, reading, title, page) {
   ring.className = "ring";
   ring.innerHTML = ringSVG(agent, reading);
   b.append(ring);
-  b.addEventListener("click", () => invoke("show_settings", { page }));
   return b;
 }
 
-/** Tell Rust how wide the capsule wants to be (logical px); it sizes and places the window. */
-function reportWidth() {
-  const w = Math.ceil(cap.getBoundingClientRect().width);
-  if (w && Math.abs(w - lastWidth) >= 1) {
-    lastWidth = w;
-    invoke("capsule_resize", { width: w }).catch(() => {});
+/** Tell Rust how big the capsule wants to be (logical px); it sizes and places the window. */
+function reportSize() {
+  const r = cap.getBoundingClientRect();
+  const w = Math.ceil(r.width);
+  const h = Math.ceil(r.height);
+  const key = `${w}x${h}`;
+  if (w && h && key !== lastSize) {
+    lastSize = key;
+    invoke("capsule_resize", { width: w, height: h }).catch(() => {});
   }
 }
 
-new ResizeObserver(reportWidth).observe(document.body);
+new ResizeObserver(reportSize).observe(cap);
 listen("state", (e) => render(e.payload));
 invoke("get_state").then(render);
 // Reset times in tooltips go stale; re-render once a minute.

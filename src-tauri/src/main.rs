@@ -256,15 +256,17 @@ async fn refresh_quotas(app: AppHandle) {
 }
 
 #[tauri::command]
-fn capsule_resize(app: AppHandle, width: f64) {
-    let width = width.clamp(32.0, 600.0);
+fn capsule_resize(app: AppHandle, width: f64, height: Option<f64>) {
+    let width = width.clamp(32.0, 900.0);
+    let height = height.unwrap_or(40.0).clamp(32.0, 900.0);
     {
         let state = app.state::<AppState>();
         let mut s = state.inner.lock().unwrap();
-        if (s.capsule_width - width).abs() < 0.5 {
+        if (s.capsule_width - width).abs() < 0.5 && (s.capsule_height - height).abs() < 0.5 {
             return;
         }
         s.capsule_width = width;
+        s.capsule_height = height;
     }
     platform::apply(&app);
 }

@@ -154,6 +154,20 @@ pub fn set_widgets(show: bool) -> Result<(), String> {
     }
 }
 
+/// Work area (screen minus taskbar) of the monitor the taskbar is on.
+pub fn work_area(taskbar: Hwnd) -> Option<crate::layout::Rect> {
+    use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTOPRIMARY};
+    unsafe {
+        let mon = MonitorFromWindow(h(taskbar), MONITOR_DEFAULTTOPRIMARY);
+        if mon.is_null() {
+            return None;
+        }
+        let mut info: MONITORINFO = std::mem::zeroed();
+        info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        (GetMonitorInfoW(mon, &mut info) != 0).then(|| super::rect(info.rcWork))
+    }
+}
+
 /// Everything layout needs about the primary taskbar, or `None` while Explorer is down.
 pub fn info() -> Option<(Hwnd, TaskbarInfo)> {
     let tb = primary()?;

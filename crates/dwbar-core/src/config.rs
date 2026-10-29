@@ -7,13 +7,49 @@ use std::{fs, path::PathBuf};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Slot {
-    /// Windows-widgets rule: centred taskbar → far left; left-aligned → next to the tray.
+    /// Windows-widgets rule (recommended): centred taskbar → far left; left-aligned → next to the tray.
+    #[default]
     Auto,
     /// Always the far left of the taskbar.
     Left,
-    /// Always just left of the system tray (default).
-    #[default]
+    /// Always just left of the system tray.
     Tray,
+}
+
+/// The 9-grid position: the centre cell is the taskbar, the other eight make the
+/// capsule a floating HUD at that edge or corner of the screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum Position {
+    #[serde(rename = "tl")]
+    TopLeft,
+    #[serde(rename = "t")]
+    Top,
+    #[serde(rename = "tr")]
+    TopRight,
+    #[serde(rename = "l")]
+    Left,
+    #[default]
+    #[serde(rename = "taskbar")]
+    Taskbar,
+    #[serde(rename = "r")]
+    Right,
+    #[serde(rename = "bl")]
+    BottomLeft,
+    #[serde(rename = "b")]
+    Bottom,
+    #[serde(rename = "br")]
+    BottomRight,
+}
+
+impl Position {
+    /// Left / right edges stack vertically; everything else is horizontal.
+    pub fn vertical(self) -> bool {
+        matches!(self, Position::Left | Position::Right)
+    }
+    /// Corners collapse to a single ring until clicked.
+    pub fn corner(self) -> bool {
+        matches!(self, Position::TopLeft | Position::TopRight | Position::BottomLeft | Position::BottomRight)
+    }
 }
 
 /// How the capsule window is attached.
@@ -58,6 +94,9 @@ pub struct Config {
     /// Settings format version, for one-time migrations. Missing (older files) = 0.
     #[serde(default)]
     pub version: u32,
+    /// 9-grid position (taskbar or a floating edge / corner).
+    pub position: Position,
+    /// Where on the taskbar, when `position` is the taskbar.
     pub slot: Slot,
     pub attach: Attach,
     /// Extra horizontal offset in logical px (e.g. to clear the widgets button).
@@ -78,7 +117,7 @@ pub struct Config {
     pub deepseek: AgentConfig,
 }
 
-/// Current settings format. 1: default position moved back to "left of the tray".
+/// Current settings format (bumped when a one-time migration is needed).
 pub const CONFIG_VERSION: u32 = 1;
 
 /// Every AI DW Bar knows, in display order.
@@ -88,7 +127,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             version: CONFIG_VERSION,
-            slot: Slot::Tray,
+            position: Position::Taskbar,
+            slot: Slot::Auto,
             attach: Attach::Embed,
             offset_x: 0,
             theme: Theme::Auto,
@@ -123,12 +163,6 @@ impl Config {
 
     /// One-time upgrades of files written by older versions.
     pub fn migrate(&mut self) {
-        if self.version < 1 {
-            // v0.1–v0.3 saved the then-default "auto"; the default is left of the tray again.
-            if self.slot == Slot::Auto {
-                self.slot = Slot::Tray;
-            }
-        }
         self.version = CONFIG_VERSION;
     }
 
@@ -179,7 +213,6 @@ mod tests {
     fn partial_files_fill_in_defaults() {
         let c: Config = serde_json::from_str(r#"{"slot":"left","claude":{"enabled":false}}"#).unwrap();
         assert_eq!(c.slot, Slot::Left);
-        assert_eq!(Config::default().slot, Slot::Tray);
         assert!(!c.claude.enabled);
         assert!(c.codex.enabled);
         assert_eq!(c.refresh_minutes, 5);
@@ -187,13 +220,13 @@ mod tests {
     }
 
     #[test]
-    fn old_files_move_back_to_the_tray() {
-        let mut old: Config = serde_json::from_str(r#"{"slot":"auto"}"#).unwrap();
-        old.migrate();
-        assert_eq!(old.slot, Slot::Tray);
-        let mut chosen: Config = serde_json::from_str(r#"{"version":1,"slot":"auto"}"#).unwrap();
-        chosen.migrate();
-        assert_eq!(chosen.slot, Slot::Auto);
+    fn positions_round_trip() {
+        let c: Config = serde_json::from_str(r#"{"position":"br"}"#).unwrap();
+        assert_eq!(c.position, Position::BottomRight);
+        assert!(c.position.corner());
+        assert_eq!(Config::default().position, Position::Taskbar);
+        assert_eq!(Config::default().slot, Slot::Auto);
+        assert_eq!(serde_json::to_value(Position::Left).unwrap(), "l");
     }
 
     #[test]

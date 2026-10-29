@@ -6,7 +6,7 @@
 //! * When the widgets button is on and the taskbar is centred, the far-left slot starts
 //!   after the space widgets uses, so the two never overlap.
 //! * `offset_x` (logical px) nudges the result; the capsule is always kept on the taskbar.
-use crate::config::Slot;
+use crate::config::{Position, Slot};
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -115,6 +115,33 @@ pub fn place(tb: &TaskbarInfo, slot: Slot, offset_x: i32, width: i32, height: i3
     Rect::new(x, y, x + width, y + height)
 }
 
+/// Thickness of the floating HUD in logical px (its height, or width when vertical).
+pub const HUD_THICKNESS: f64 = 44.0;
+/// Logical px between the floating HUD and the screen edge.
+pub const HUD_MARGIN: f64 = 12.0;
+
+/// Screen rect for the floating HUD inside the monitor's work area (which already
+/// excludes the taskbar). `w` × `h` are physical px.
+pub fn place_floating(work: &Rect, pos: Position, scale: f64, w: i32, h: i32) -> Rect {
+    let m = (HUD_MARGIN * scale).round() as i32;
+    let cx = work.left + (work.width() - w) / 2;
+    let cy = work.top + (work.height() - h) / 2;
+    let (left, right) = (work.left + m, work.right - m - w);
+    let (top, bottom) = (work.top + m, work.bottom - m - h);
+    let (x, y) = match pos {
+        Position::TopLeft => (left, top),
+        Position::Top => (cx, top),
+        Position::TopRight => (right, top),
+        Position::Left => (left, cy),
+        Position::Right => (right, cy),
+        Position::BottomLeft => (left, bottom),
+        Position::Bottom => (cx, bottom),
+        Position::BottomRight => (right, bottom),
+        Position::Taskbar => (cx, bottom),
+    };
+    Rect::new(x, y, x + w, y + h)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,6 +199,17 @@ mod tests {
         tb.tray = None;
         let r = place(&tb, Slot::Tray, 0, 100, 40);
         assert_eq!(r.right, 1920 - 320);
+    }
+
+    #[test]
+    fn floating_positions() {
+        let work = Rect::new(0, 0, 1920, 1032);
+        assert_eq!(place_floating(&work, Position::TopLeft, 1.0, 100, 44), Rect::new(12, 12, 112, 56));
+        assert_eq!(place_floating(&work, Position::BottomRight, 1.0, 100, 44), Rect::new(1808, 976, 1908, 1020));
+        let r = place_floating(&work, Position::Left, 1.5, 66, 300);
+        assert_eq!((r.left, r.top), (18, 366));
+        let t = place_floating(&work, Position::Top, 1.0, 200, 44);
+        assert_eq!(t.left, 860);
     }
 
     #[test]

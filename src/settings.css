@@ -264,3 +264,38 @@ details summary { cursor: pointer; width: max-content; }
 .bigbal { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; }
 .bigbal small { color: var(--fg-3); }
 .bigbal b { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* position grid */
+.posgrid-wrap { display: flex; gap: 22px; align-items: flex-start; margin: 10px 0 14px; }
+.posgrid { display: grid; grid-template-columns: repeat(3, 92px); gap: 8px; flex: none; }
+.posgrid button {
+  position: relative; height: 58px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card);
+  overflow: hidden;
+}
+/* mini taskbar strip on every screen */
+.posgrid button::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 9px; background: var(--track);
+}
+/* the capsule marker */
+.posgrid button::after {
+  content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px solid var(--fg-3); box-shadow: 10px 0 0 -0.5px transparent;
+}
+.posgrid [data-pos="tl"]::after { left: 8px; top: 8px; }
+.posgrid [data-pos="tr"]::after { right: 8px; top: 8px; }
+.posgrid [data-pos="bl"]::after { left: 8px; bottom: 15px; }
+.posgrid [data-pos="br"]::after { right: 8px; bottom: 15px; }
+.posgrid [data-pos="t"]::after { left: 50%; top: 8px; transform: translateX(-50%); width: 22px; border-radius: 99px; }
+.posgrid [data-pos="b"]::after { left: 50%; bottom: 15px; transform: translateX(-50%); width: 22px; border-radius: 99px; }
+.posgrid [data-pos="l"]::after { left: 8px; top: 50%; transform: translateY(-62%); height: 22px; border-radius: 99px; }
+.posgrid [data-pos="r"]::after { right: 8px; top: 50%; transform: translateY(-62%); height: 22px; border-radius: 99px; }
+.posgrid [data-pos="taskbar"]::after { right: 10px; bottom: 1.5px; width: 22px; height: 5px; border-radius: 99px; }
+.posgrid button:hover { border-color: var(--fg-3); }
+.posgrid button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.posgrid button.on::after { border-color: var(--accent); background: var(--accent); }
+.posgrid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.posinfo { min-width: 0; padding-top: 4px; }
+.posinfo b { font-size: 15px; }
+.posinfo p { color: var(--fg-2); margin: 6px 0 0; font-size: 13px; }
+@media (max-width: 700px) { .posgrid-wrap { flex-direction: column; } }

@@ -33,29 +33,49 @@ pub fn apply(app: &AppHandle) {
     #[cfg(any(windows, feature = "lint-win"))]
     {
         use crate::state::Placement;
-        use dwbar_core::{config::Attach, layout, win::{embed, taskbar}};
+        use dwbar_core::{config::{Attach, Position}, layout, win::{embed, taskbar}};
         let Some(hwnd) = hwnd_of(&win) else { return };
-        let (config, width_logical, fullscreen) = {
+        let (config, width_logical, height_logical, fullscreen) = {
             let s = state.inner.lock().unwrap();
-            (s.config.clone(), s.capsule_width, s.fullscreen)
+            (s.config.clone(), s.capsule_width, s.capsule_height, s.fullscreen)
         };
         let Some((tb, info)) = taskbar::info() else {
             // Explorer is restarting; TaskbarCreated will bring us back.
             embed::set_visible(hwnd, false);
             return;
         };
-        let height = layout::capsule_height(&info);
-        let width = (width_logical * info.scale).round().max(height as f64) as i32;
-        let rect = layout::place(&info, config.slot, config.offset_x, width, height);
+        let floating = config.position != Position::Taskbar;
+        let work = taskbar::work_area(tb);
 
-        let embedded = match config.attach {
-            Attach::Embed => embed::embed(hwnd, tb),
-            Attach::Overlay => false,
+        let (rect, embedded) = if floating {
+            // Floating HUD: a top-most tool window at the chosen edge / corner.
+            let thick = (layout::HUD_THICKNESS * info.scale).round() as i32;
+            let (w, h) = if config.position.vertical() {
+                (thick, ((height_logical * info.scale).round() as i32).max(thick))
+            } else {
+                (((width_logical * info.scale).round() as i32).max(thick), thick)
+            };
+            let area = work.unwrap_or(info.rect);
+            if embed::is_child_of(hwnd, tb) {
+                embed::unembed(hwnd);
+            }
+            let rect = layout::place_floating(&area, config.position, info.scale, w, h);
+            embed::place(hwnd, rect, None);
+            (rect, false)
+        } else {
+            let height = layout::capsule_height(&info);
+            let width = (width_logical * info.scale).round().max(height as f64) as i32;
+            let rect = layout::place(&info, config.slot, config.offset_x, width, height);
+            let embedded = match config.attach {
+                Attach::Embed => embed::embed(hwnd, tb),
+                Attach::Overlay => false,
+            };
+            if !embedded && embed::is_child_of(hwnd, tb) {
+                embed::unembed(hwnd);
+            }
+            embed::place(hwnd, rect, embedded.then_some(tb));
+            (rect, embedded)
         };
-        if !embedded && embed::is_child_of(hwnd, tb) {
-            embed::unembed(hwnd);
-        }
-        embed::place(hwnd, rect, embedded.then_some(tb));
         let visible = !(config.hide_fullscreen && fullscreen);
         embed::set_visible(hwnd, visible);
 
@@ -63,13 +83,15 @@ pub fn apply(app: &AppHandle) {
         s.placement = Placement {
             found_taskbar: true,
             embedded,
-            fallback: config.attach == Attach::Embed && !embedded,
+            fallback: !floating && config.attach == Attach::Embed && !embedded,
             visible,
             scale: info.scale,
             centered: info.centered,
             widgets: info.widgets,
             taskbar: Some(info.rect),
             capsule: Some(rect),
+            work,
+            floating,
         };
     }
 
@@ -97,8 +119,9 @@ pub fn tick(app: &AppHandle) {
         };
         let now = taskbar::info();
         let changed = match &now {
-            Some((_, info)) => {
+            Some((tb, info)) => {
                 Some(info.rect) != last.taskbar
+                    || (last.floating && taskbar::work_area(*tb) != last.work)
                     || info.centered != last.centered
                     || info.widgets != last.widgets
                     || (info.scale - last.scale).abs() > f64::EPSILON

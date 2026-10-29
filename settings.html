@@ -31,11 +31,20 @@
       <!-- 位置 -->
       <section id="page-position" class="page">
         <header><h1>位置</h1></header>
-        <div class="group">
+        <p class="hint">九宮格八向定位：中間是工作列，其他位置會變成懸浮膠囊。</p>
+        <div class="posgrid-wrap">
+          <div class="posgrid" id="posGrid" role="radiogroup" aria-label="膠囊位置">
+            <button data-pos="tl" role="radio"></button><button data-pos="t" role="radio"></button><button data-pos="tr" role="radio"></button>
+            <button data-pos="l" role="radio"></button><button data-pos="taskbar" role="radio"></button><button data-pos="r" role="radio"></button>
+            <button data-pos="bl" role="radio"></button><button data-pos="b" role="radio"></button><button data-pos="br" role="radio"></button>
+          </div>
+          <div class="posinfo"><b id="posTitle"></b><p id="posDesc"></p></div>
+        </div>
+        <div class="group" id="taskbarRules">
           <div class="row">
-            <div class="lbl"><b>膠囊位置</b><span>預設放在系統匣（時鐘）左側。自動：工作列置中時放最左邊，靠左時放系統匣左側。</span></div>
+            <div class="lbl"><b>工作列位置規則</b><span id="slotDesc"></span></div>
             <div class="seg" data-key="slot">
-              <button value="tray">系統匣左側</button><button value="left">最左邊</button><button value="auto">自動</button>
+              <button value="auto">小工具位置（建議）</button><button value="left">固定最左</button><button value="tray">固定系統匣左邊</button>
             </div>
           </div>
           <div class="row">
@@ -46,6 +55,8 @@
             <div class="lbl"><b>附著方式</b><span>嵌入：成為工作列的一部分，跟著工作列移動與隱藏。若顯示異常，改用浮貼。</span></div>
             <div class="seg" data-key="attach"><button value="embed">嵌入工作列</button><button value="overlay">浮貼在上方</button></div>
           </div>
+        </div>
+        <div class="group">
           <div class="row">
             <div class="lbl"><b>Windows 小工具（天氣）</b><span>關掉工作列左邊的天氣小工具，膠囊會移到它原本的位置。</span></div>
             <label class="switch"><input type="checkbox" id="widgetsToggle" /><i></i></label>

@@ -50,6 +50,7 @@ function toast(text) {
 
 // ───────── controls bound to config ─────────
 function bindControls() {
+  $$("#posGrid button").forEach((b) => b.addEventListener("click", () => save({ position: b.dataset.pos })));
   $$(".seg").forEach((seg) => {
     seg.addEventListener("click", (e) => {
       const b = e.target.closest("button");
@@ -106,9 +107,42 @@ function syncControls() {
     $$("button", seg).forEach((b) => b.setAttribute("aria-pressed", String(config[seg.dataset.key] === b.value)));
   });
   $$('input[type="checkbox"][data-key]').forEach((cb) => (cb.checked = !!config[cb.dataset.key]));
+  syncPosition();
   if (document.activeElement !== $("#offset")) $("#offset").value = config.offset_x;
   $("#refreshMin").value = String(config.refresh_minutes);
   $("#widgetsToggle").checked = !!state.placement.widgets;
+}
+
+// ───────── 位置（九宮格） ─────────
+const POSITIONS = {
+  taskbar: ["工作列 · 取代天氣", "嵌在工作列裡，跟著工作列移動和自動隱藏；放在哪一側由下方「工作列位置規則」決定。"],
+  tl: ["左上 · 懸浮 HUD", "平常只顯示最需要注意的一個 AI，點一下展開全部，2 分鐘沒操作就收回。"],
+  t: ["正上方 · 懸浮 HUD", "橫向排列在螢幕上緣中央。"],
+  tr: ["右上 · 懸浮 HUD", "平常只顯示最需要注意的一個 AI，點一下展開全部，2 分鐘沒操作就收回。"],
+  l: ["左側 · 懸浮 HUD", "直向排列在螢幕左緣中央。"],
+  r: ["右側 · 懸浮 HUD", "直向排列在螢幕右緣中央。"],
+  bl: ["左下 · 懸浮 HUD", "平常只顯示最需要注意的一個 AI，點一下展開全部，2 分鐘沒操作就收回。"],
+  b: ["正下方 · 懸浮 HUD", "橫向排列在工作列正上方中央。"],
+  br: ["右下 · 懸浮 HUD", "平常只顯示最需要注意的一個 AI，點一下展開全部，2 分鐘沒操作就收回。"],
+};
+const SLOT_DESC = {
+  auto: "圖示置中時放在工作列最左邊（原生天氣的位置）；圖示靠左時自動移到系統匣左邊，不會蓋到開始按鈕。",
+  left: "一律放在工作列最左邊。",
+  tray: "一律放在系統匣（時鐘）左邊。",
+};
+
+function syncPosition() {
+  const pos = config.position || "taskbar";
+  $$("#posGrid button").forEach((b) => {
+    const on = b.dataset.pos === pos;
+    b.setAttribute("aria-checked", String(on));
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-label", POSITIONS[b.dataset.pos][0]);
+  });
+  $("#posTitle").textContent = POSITIONS[pos][0];
+  $("#posDesc").textContent = POSITIONS[pos][1];
+  $("#taskbarRules").hidden = pos !== "taskbar";
+  $("#slotDesc").textContent = SLOT_DESC[config.slot] || "";
 }
 
 // ───────── 用量 ─────────
