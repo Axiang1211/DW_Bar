@@ -88,6 +88,8 @@ pub struct Material {
     pub angle: u16,
     /// `metal`: silver / gold / rose / titanium / holo.
     pub metal: String,
+    /// `frosted` / `liquid`: how strong the glass tint is, 0..=80 % (lower = clearer).
+    pub tint: u8,
 }
 
 impl Default for Material {
@@ -100,6 +102,7 @@ impl Default for Material {
             colors: ["#5b8cff".into(), "#c86bff".into()],
             angle: 135,
             metal: "silver".into(),
+            tint: 20,
         }
     }
 }
@@ -108,7 +111,7 @@ impl Default for Material {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Backdrop {
     None,
-    /// Light blur, no grain: liquid glass.
+    /// Plain blur, no grain.
     Blur,
     /// Acrylic: blur + grain, frosted glass.
     Acrylic,
@@ -117,9 +120,10 @@ pub enum Backdrop {
 impl Material {
     pub fn backdrop(&self) -> Backdrop {
         match self.kind.as_str() {
-            "frosted" => Backdrop::Acrylic,
-            "liquid" => Backdrop::Blur,
-            "color" | "gradient" if self.opacity < 95 => Backdrop::Acrylic,
+            // Plain blur keeps the desktop's colours; acrylic adds a grey haze and grain.
+            "frosted" => Backdrop::Blur,
+            // Liquid glass stays clear: the page draws the rim and refraction only.
+            "color" | "gradient" if self.opacity < 95 => Backdrop::Blur,
             _ => Backdrop::None,
         }
     }
@@ -325,6 +329,7 @@ impl Config {
         self.offset_x = self.offset_x.clamp(-2000, 2000);
         self.material.opacity = self.material.opacity.clamp(20, 100);
         self.material.angle %= 360;
+        self.material.tint = self.material.tint.min(80);
     }
 }
 
@@ -356,9 +361,9 @@ mod tests {
     fn material_backdrop() {
         let m = |kind: &str, opacity: u8| Material { kind: kind.into(), opacity, ..Material::default() };
         assert_eq!(m("default", 85).backdrop(), Backdrop::None);
-        assert_eq!(m("frosted", 85).backdrop(), Backdrop::Acrylic);
-        assert_eq!(m("liquid", 100).backdrop(), Backdrop::Blur);
-        assert_eq!(m("color", 60).backdrop(), Backdrop::Acrylic);
+        assert_eq!(m("frosted", 85).backdrop(), Backdrop::Blur);
+        assert_eq!(m("liquid", 100).backdrop(), Backdrop::None);
+        assert_eq!(m("color", 60).backdrop(), Backdrop::Blur);
         assert_eq!(m("gradient", 100).backdrop(), Backdrop::None);
         assert_eq!(m("metal", 50).backdrop(), Backdrop::None);
         let old: Config = serde_json::from_str("{}").unwrap();

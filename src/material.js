@@ -88,7 +88,7 @@ export function paint(m, dark) {
 /** True when the OS blurs the desktop behind this material (mirrors Material::backdrop). */
 export function osBlurs(m) {
   const k = m?.kind;
-  return k === "frosted" || k === "liquid" || ((k === "color" || k === "gradient") && (m.opacity ?? 85) < 95);
+  return k === "frosted" || ((k === "color" || k === "gradient") && (m.opacity ?? 85) < 95);
 }
 
 /**
@@ -110,7 +110,11 @@ export function applyMaterial(m, { theme = "auto", blur = false, platform = "win
   const p = paint(m, dark);
   if (p) root.style.setProperty("--m-bg", p.bg);
   else root.style.removeProperty("--m-bg");
-  root.dataset.ink = p ? p.ink : dark ? "light" : "dark";
+  // Clear liquid glass can't know what is behind it: white text with a shadow reads
+  // over the most backgrounds.
+  root.dataset.ink = p ? p.ink : kind === "liquid" || dark ? "light" : "dark";
+  // Glass tint strength, 0..0.8 (frosted / liquid).
+  root.style.setProperty("--m-tint", String(Math.min(80, Math.max(0, m.tint ?? 20)) / 100));
   if (blur && osBlurs(m)) {
     root.dataset.blur = "1";
     root.style.setProperty("--blur-r", platform === "macos" ? "12px" : round ? "8px" : "0px");

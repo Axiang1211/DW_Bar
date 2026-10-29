@@ -139,13 +139,13 @@ function syncStyle() {
 // ───────── 背景材質 ─────────
 const MAT_DESC = {
   default: "原本的深色／淺色面板，跟著上面的主題切換。",
-  frosted: "毛玻璃：後方的桌面會模糊並加上細緻顆粒，文字顏色跟著主題。",
-  liquid: "液態玻璃：幾乎透明，只輕微模糊，邊緣有高光和折射色。",
+  frosted: "毛玻璃：後方的桌面會變模糊、透出原本的顏色，文字顏色跟著主題。",
+  liquid: "液態玻璃：完全透明、不模糊，只有邊緣的高光和折射色；文字放在淡淡的玻璃卡片上。",
   color: "純色：選一個顏色和不透明度，文字會自動選擇深色或淺色。",
   gradient: "漸層：選一組配色，或自訂兩個顏色和角度。",
   metal: "液態金屬：拋光金屬的光澤，面板打開時高光會緩慢流動。",
 };
-const mat = () => ({ kind: "default", color: "#3d8bff", opacity: 85, gradient: "aurora", colors: ["#5b8cff", "#c86bff"], angle: 135, metal: "silver", ...(config.material || {}) });
+const mat = () => ({ kind: "default", color: "#3d8bff", opacity: 85, gradient: "aurora", colors: ["#5b8cff", "#c86bff"], angle: 135, metal: "silver", tint: 20, ...(config.material || {}) });
 // Preview while dragging a slider; save when it is let go.
 let matDraft = null;
 function saveMaterial(patch, { draft = false } = {}) {
@@ -169,6 +169,7 @@ function previewMaterial(m) {
   scopeMaterial($("#matScope"), m);
   $("#matOpVal").textContent = `${m.opacity}%`;
   $("#matAngleVal").textContent = `${m.angle}°`;
+  $("#matTintVal").textContent = `${m.tint}%`;
 }
 function bindMaterial() {
   $("#matTiles").innerHTML = KINDS.map(
@@ -203,6 +204,7 @@ function bindMaterial() {
   live("#matColor", (v) => ({ color: v }), String);
   live("#matOpacity", (v) => ({ opacity: v }), (v) => parseInt(v, 10));
   live("#matAngle", (v) => ({ angle: v }), (v) => parseInt(v, 10));
+  live("#matTint", (v) => ({ tint: v }), (v) => parseInt(v, 10));
   live("#matC1", (v) => ({ colors: [v, (matDraft || mat()).colors[1]] }), String);
   live("#matC2", (v) => ({ colors: [(matDraft || mat()).colors[0], v] }), String);
 }
@@ -223,6 +225,7 @@ function syncMaterial() {
   set("#matColor", m.color);
   set("#matOpacity", m.opacity);
   set("#matAngle", m.angle);
+  set("#matTint", m.tint);
   set("#matC1", m.colors[0]);
   set("#matC2", m.colors[1]);
   previewMaterial(m);

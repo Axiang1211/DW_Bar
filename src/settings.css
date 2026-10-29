@@ -334,7 +334,7 @@ details summary { cursor: pointer; width: max-content; }
 .mp-scope.light { --glass: rgba(250, 249, 252, 0.96); --card: rgba(255, 255, 255, 0.8); --line: rgba(36, 28, 52, 0.11); --fg: #1d1a26; --fg-2: #565266; --fg-3: #8a8698; --track: rgba(36, 28, 52, 0.1); }
 .mp-panel { background: var(--glass); border: 1px solid var(--line); border-radius: 16px; padding: 10px; box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.6); }
 .mp-scope[data-simblur] .mp-panel { backdrop-filter: blur(16px) saturate(1.5); }
-.mp-scope[data-material="liquid"][data-simblur] .mp-panel { backdrop-filter: blur(6px) saturate(1.6); }
+
 .mp-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .mp-head .ring { width: 24px; height: 24px; }
 .mp-head b { display: block; font-size: 12.5px; line-height: 1.2; }
