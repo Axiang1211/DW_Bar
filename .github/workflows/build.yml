@@ -2,7 +2,8 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    # test/* branches build everything (MSIX included) without publishing a release.
+    branches: [main, "test/**"]
     tags: ["v*"]
     # Website-only changes are deployed by Cloudflare; no need to rebuild the app.
     paths-ignore: ["site/**", "**.md"]
@@ -154,7 +155,7 @@ jobs:
   release:
     name: Publish release
     needs: [build, msix]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
