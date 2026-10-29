@@ -84,7 +84,7 @@ jobs:
           if-no-files-found: error
           path: out/*
 
-  # Every push to main publishes (or refreshes) the release for the current version.
+  # A push to main publishes a release when the version in tauri.conf.json is new.
   # The website's /download streams releases/latest/download/<file>.
   release:
     name: Publish release
@@ -101,8 +101,18 @@ jobs:
           merge-multiple: true
       - name: Version
         id: v
-        run: echo "version=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          # A version is published once; bump the version to ship a new release.
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$V is already released; bump the version in tauri.conf.json to publish a new one."
+          fi
       - uses: softprops/action-gh-release@v2
+        if: steps.v.outputs.exists != 'true'
         with:
           tag_name: v${{ steps.v.outputs.version }}
           name: DW Bar ${{ steps.v.outputs.version }}
