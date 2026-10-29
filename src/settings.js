@@ -68,6 +68,16 @@ function bindControls() {
     }),
   );
   $("#refreshMin").addEventListener("change", (e) => save({ refresh_minutes: parseInt(e.target.value, 10) }));
+  $("#widgetsToggle").addEventListener("change", async (e) => {
+    const show = e.target.checked;
+    try {
+      toast(await invoke("set_widgets", { show }));
+    } catch (err) {
+      toast(String(err));
+    }
+    state = await invoke("get_state");
+    renderAll();
+  });
   $("#refresh").addEventListener("click", () => {
     invoke("refresh_quotas");
     $("#refresh").disabled = true;
@@ -98,6 +108,7 @@ function syncControls() {
   $$('input[type="checkbox"][data-key]').forEach((cb) => (cb.checked = !!config[cb.dataset.key]));
   if (document.activeElement !== $("#offset")) $("#offset").value = config.offset_x;
   $("#refreshMin").value = String(config.refresh_minutes);
+  $("#widgetsToggle").checked = !!state.placement.widgets;
 }
 
 // ───────── 用量 ─────────

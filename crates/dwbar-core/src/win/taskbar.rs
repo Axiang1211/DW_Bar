@@ -111,6 +111,49 @@ pub fn widgets() -> bool {
     }
 }
 
+/// Show or hide the Windows widgets button (the weather at the left of the taskbar),
+/// the same switch as Settings → Personalization → Taskbar → Widgets.
+///
+/// Some Windows 11 builds protect this value from other apps; then this returns
+/// `Err` and the caller should send the user to that Settings page instead.
+pub fn set_widgets(show: bool) -> Result<(), String> {
+    use windows_sys::Win32::{
+        Foundation::ERROR_ACCESS_DENIED,
+        System::Registry::{RegSetKeyValueW, REG_DWORD},
+        UI::WindowsAndMessaging::{SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE},
+    };
+    let (key, name) = (wide(ADVANCED), wide("TaskbarDa"));
+    let value: u32 = if show { 1 } else { 0 };
+    let rc = unsafe {
+        RegSetKeyValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            name.as_ptr(),
+            REG_DWORD,
+            &value as *const u32 as *const _,
+            std::mem::size_of::<u32>() as u32,
+        )
+    };
+    if rc != 0 {
+        crate::log!("taskbar", "TaskbarDa write refused ({rc})");
+        return Err(if rc == ERROR_ACCESS_DENIED { "protected".into() } else { format!("error {rc}") });
+    }
+    // Tell Explorer to re-read its taskbar settings (never block on a hung window).
+    let area = wide("TraySettings");
+    let mut result = 0usize;
+    unsafe {
+        SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, area.as_ptr() as isize, SMTO_ABORTIFHUNG, 200, &mut result);
+    }
+    // Some builds only notice after a moment; confirm by reading it back.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    if widgets() == show {
+        crate::log!("taskbar", "widgets {}", if show { "shown" } else { "hidden" });
+        Ok(())
+    } else {
+        Err("not applied".into())
+    }
+}
+
 /// Everything layout needs about the primary taskbar, or `None` while Explorer is down.
 pub fn info() -> Option<(Hwnd, TaskbarInfo)> {
     let tb = primary()?;

@@ -279,6 +279,33 @@ fn read_log(lines: Option<usize>) -> Vec<String> {
     log::tail(lines.unwrap_or(200))
 }
 
+/// Hide / show the Windows widgets (weather) button. When Windows protects the
+/// setting, open the Taskbar settings page so the user can flip it there.
+#[tauri::command]
+async fn set_widgets(app: AppHandle, show: bool) -> Result<String, String> {
+    #[cfg(any(windows, feature = "lint-win"))]
+    {
+        let result = dwbar_core::win::taskbar::set_widgets(show);
+        let _ = app.run_on_main_thread({
+            let app = app.clone();
+            move || platform::apply(&app)
+        });
+        broadcast(&app);
+        match result {
+            Ok(()) => Ok(if show { "已顯示小工具".into() } else { "已關閉小工具（天氣）".into() }),
+            Err(_) => {
+                let _ = std::process::Command::new("explorer.exe").arg("ms-settings:taskbar").spawn();
+                Err("Windows 不允許其他程式更改這個設定，已幫你打開「工作列設定」，請把「小工具」關掉。".into())
+            }
+        }
+    }
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    {
+        let _ = (app, show);
+        Err("只支援 Windows".into())
+    }
+}
+
 #[tauri::command]
 async fn connect_account(app: AppHandle, agent: String) {
     accounts::open_login(&app, &agent);
@@ -329,6 +356,7 @@ fn main() {
             read_log,
             connect_account,
             disconnect_account,
+            set_widgets,
             clear_accounts,
             quit
         ])
