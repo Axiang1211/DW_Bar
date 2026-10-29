@@ -16,6 +16,10 @@ pub(crate) const NAME: &str = "Antigravity";
 #[cfg_attr(not(windows), allow(dead_code))]
 const PROBE: &str = r#"
 $ErrorActionPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
+# Chinese / Japanese Windows default to a legacy code page; DW Bar reads UTF-8.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $out = @{ found = $false; summary = $null; status = $null; error = $null; candidates = @(); tried = 0 }
 try {
   $all = @(Get-CimInstance Win32_Process)
@@ -132,9 +136,10 @@ fn run_probe() -> Result<Value, String> {
     // Drain stdout on a thread so a large answer can never fill the pipe and stall the child.
     let mut stdout = child.stdout.take().ok_or_else(|| "沒有輸出".to_string())?;
     let reader = std::thread::spawn(move || {
-        let mut text = String::new();
-        let _ = stdout.read_to_string(&mut text);
-        text
+        // Bytes, then lossy UTF-8: one stray byte must not throw away the whole answer.
+        let mut bytes = Vec::new();
+        let _ = stdout.read_to_end(&mut bytes);
+        String::from_utf8_lossy(&bytes).into_owned()
     });
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
@@ -149,8 +154,16 @@ fn run_probe() -> Result<Value, String> {
         }
     }
     let text = reader.join().unwrap_or_default();
-    serde_json::from_str::<Value>(text.trim().trim_start_matches('\u{feff}'))
-        .map_err(|_| "Antigravity 回傳了無法辨識的資料".to_string())
+    let body = text.trim().trim_start_matches('\u{feff}');
+    // PowerShell can print stray lines before the JSON; take the last line that parses.
+    let parsed = serde_json::from_str::<Value>(body).ok().or_else(|| {
+        body.lines().rev().find_map(|l| serde_json::from_str::<Value>(l.trim()).ok().filter(Value::is_object))
+    });
+    parsed.ok_or_else(|| {
+        let head: String = body.chars().take(240).collect();
+        crate::log!("antigravity", "unparseable probe output ({} bytes): {}", body.len(), head.replace(['\r', '\n'], " "));
+        "Antigravity 回傳了無法辨識的資料".to_string()
+    })
 }
 
 /// PowerShell `-EncodedCommand`: base64 of the UTF-16LE script.
