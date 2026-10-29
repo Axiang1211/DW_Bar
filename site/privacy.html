@@ -14,15 +14,17 @@
     <a class="btn small" href="/download">下載</a>
   </div></header>
   <main class="legal"><div class="wrap">
+    <p class="updated" style="margin:0 0 6px"><a href="/privacy">繁體中文</a> · <a href="/zh-cn/privacy">简体中文</a> · <a href="/en/privacy">English</a></p>
     <h1>隱私權政策</h1>
-    <p class="updated">最後更新：2026 年 10 月 29 日</p>
-    <p>本政策說明 Dreamsworld 夢翔之地（以下稱「我們」）提供的 Windows 程式 DW Bar，以及本網站 dwbar.app.dreamsworld.top，如何處理你的資料。簡單來說：<b>DW Bar 的資料都留在你的電腦裡，我們沒有伺服器接收它們。</b></p>
+    <p class="updated">最後更新：2026 年 10 月 30 日</p>
+    <p>本政策說明 Dreamsworld 夢翔之地（以下稱「我們」）提供的 Windows / macOS 程式 DW Bar，以及本網站 dwbar.app.dreamsworld.top，如何處理你的資料。簡單來說：<b>DW Bar 的資料都留在你的電腦裡，我們沒有伺服器接收它們。</b></p>
 
     <h2>1. DW Bar 在你電腦上保存的資料</h2>
     <ul>
-      <li><b>設定</b>：位置、外觀、更新頻率、連結了哪些 AI 等，存放在 <code>%LOCALAPPDATA%\DWBar\config.json</code>。</li>
+      <li><b>設定</b>：位置、外觀、更新頻率、連結了哪些 AI 等，存放在 <code>%LOCALAPPDATA%\DWBar\config.json</code>（macOS：<code>~/Library/Application Support/DWBar</code>）。</li>
       <li><b>紀錄檔</b>：程式事件與各 AI 的額度百分比，用來排除問題，存放在 <code>%LOCALAPPDATA%\DWBar\logs\</code>，超過 1 MB 會自動輪替。紀錄檔不包含密碼、登入憑證或對話內容。</li>
       <li><b>登入狀態</b>：你在 DW Bar 內登入 AI 服務時，該網站的登入 Cookie 與網站資料會由 Microsoft Edge WebView2 存放在 DW Bar 專用的瀏覽器資料夾中，和你平常使用的瀏覽器分開。</li>
+      <li>Microsoft Store 版會把同樣的資料存放在 App 自己的儲存空間，解除安裝時由 Windows 一併刪除。</li>
     </ul>
     <p>以上資料不會被傳送給我們。</p>
 
@@ -44,13 +46,16 @@
     <h2>5. 刪除你的資料</h2>
     <ul>
       <li>在 DW Bar 設定 →「AI 帳號」按「清除登入資料」，即可登出所有帳號並刪除保存的登入狀態。</li>
-      <li>解除安裝 DW Bar 後，可以再刪除 <code>%LOCALAPPDATA%\DWBar</code> 與 <code>%LOCALAPPDATA%\app.dwbar.desktop</code> 資料夾，移除所有本機資料。</li>
+      <li>解除安裝 DW Bar 後，可以再刪除 <code>%LOCALAPPDATA%\DWBar</code> 與 <code>%LOCALAPPDATA%\app.dwbar.desktop</code> 資料夾，移除所有本機資料。Microsoft Store 版解除安裝時會被完全刪除。</li>
     </ul>
 
-    <h2>6. 政策變更</h2>
+    <h2>6. 兒童</h2>
+    <p>DW Bar 是一般的效率工具，不會有意蒐集任何人（包括兒童）的資料。</p>
+
+    <h2>7. 政策變更</h2>
     <p>如果本政策有重大變更，我們會更新本頁面上方的日期。</p>
 
-    <h2>7. 聯絡我們</h2>
+    <h2>8. 聯絡我們</h2>
     <p>對本政策有任何問題，請寄信到 <a href="mailto:axianggaming1211@gmail.com">axianggaming1211@gmail.com</a> 與我們聯絡。</p>
   </div></main>
   <footer><div class="wrap"><span>© 2026 Dreamsworld 夢翔之地 · DW Bar</span>

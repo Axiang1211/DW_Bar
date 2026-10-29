@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy｜DW Bar</title>
+  <link rel="icon" href="/favicon.png" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="top"><div class="wrap">
+    <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="38" height="38" />DW Bar</a>
+    <a class="btn small" href="/download" style="margin-left:auto">Download</a>
+  </div></header>
+  <main class="legal"><div class="wrap">
+    <p class="updated" style="margin:0 0 6px"><a href="/privacy">繁體中文</a> · <a href="/zh-cn/privacy">简体中文</a> · <a href="/en/privacy">English</a></p>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: October 30, 2026</p>
+    <p>This policy explains how DW Bar, the desktop app for Windows and macOS made by Dreamsworld (“we”), and this website, dwbar.app.dreamsworld.top, handle your data. In short: <b>DW Bar keeps its data on your computer. We have no server that receives it.</b></p>
+
+    <h2>1. Data DW Bar keeps on your computer</h2>
+    <ul>
+      <li><b>Settings</b>: position, appearance, language, refresh interval, which AI services are linked and similar, stored in <code>%LOCALAPPDATA%\DWBar\config.json</code> (macOS: <code>~/Library/Application Support/DWBar</code>).</li>
+      <li><b>Log</b>: app events and the usage percentages of each AI service, used for troubleshooting, stored next to the settings in <code>logs</code> and rotated automatically after 1 MB. The log never contains passwords, sign-in credentials or conversations.</li>
+      <li><b>Sign-in data</b>: when you sign in to an AI service inside DW Bar, that website's cookies and site data are kept by the system web view (Microsoft Edge WebView2 / WebKit) in a browser folder used only by DW Bar, separate from your everyday browser.</li>
+      <li>The Microsoft Store version keeps the same data in its own app storage, which Windows removes when you uninstall the app.</li>
+    </ul>
+    <p>None of this is sent to us.</p>
+
+    <h2>2. Data DW Bar reads</h2>
+    <p>DW Bar only reads the <b>usage information</b> each AI service shows to you: remaining percentage, reset time, plan name, balance and the email address that identifies the account. DW Bar does not read your conversations, files or projects, and it never sees your password: you sign in on the service's own website.</p>
+
+    <h2>3. Who DW Bar connects to</h2>
+    <ul>
+      <li><b>The AI services you link</b> (for example claude.ai, chatgpt.com, gemini.google.com, cursor.com, windsurf.com, platform.deepseek.com), to read your usage. These connections are the same as opening the site in a browser and are covered by each service's own privacy policy.</li>
+      <li><b>Antigravity</b>: only Antigravity's own service on your computer (127.0.0.1), not the internet.</li>
+      <li><b>Icons</b>: the service icons in the rings are loaded from each service's official website, or from Google's favicon service (www.google.com/s2/favicons) if that fails. These sites receive ordinary request information such as your IP address.</li>
+      <li><b>Command-line tools</b>: if Claude Code or Codex is installed, DW Bar may run it in the background to read your limits; those tools connect according to their own policies.</li>
+    </ul>
+    <p>DW Bar has <b>no</b> analytics, tracking, advertising or telemetry, and it does not send data to us or any third party.</p>
+
+    <h2>4. This website</h2>
+    <p>This website is served by Cloudflare, which may process ordinary connection information (such as IP address and browser type) for security and performance. Installers are passed through from our releases on GitHub. The website uses no tracking cookies or third-party analytics.</p>
+
+    <h2>5. Deleting your data</h2>
+    <ul>
+      <li>In DW Bar, open Settings → AI accounts → <b>Clear sign-in data</b> to sign out of every account and delete the saved sign-in data.</li>
+      <li>After uninstalling, you can delete the <code>%LOCALAPPDATA%\DWBar</code> and <code>%LOCALAPPDATA%\app.dwbar.desktop</code> folders to remove everything. The Microsoft Store version is removed completely when you uninstall it.</li>
+    </ul>
+
+    <h2>6. Children</h2>
+    <p>DW Bar is a general productivity tool and does not knowingly collect any data from anyone, including children.</p>
+
+    <h2>7. Changes</h2>
+    <p>If this policy changes in a meaningful way, we will update the date at the top of this page.</p>
+
+    <h2>8. Contact</h2>
+    <p>Questions about this policy: <a href="mailto:axianggaming1211@gmail.com">axianggaming1211@gmail.com</a>.</p>
+  </div></main>
+  <footer><div class="wrap"><span>© 2026 Dreamsworld · DW Bar</span>
+    <nav aria-label="footer"><a href="/en/privacy">Privacy Policy</a><a href="/en/terms">Terms of Use</a><a href="/">Home</a></nav></div></footer>
+</body>
+</html>

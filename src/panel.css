@@ -45,7 +45,8 @@ html, body { margin: 0; background: transparent; overflow: hidden; font: 13px/1.
 .mc { position: relative; overflow: hidden; padding: 12px 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
 .mc.focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .mc-glow { position: absolute; inset: 0; pointer-events: none; opacity: 0.5; }
-.mc-grid { position: relative; display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; }
+.mc-grid { position: relative; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 14px; align-items: center; }
+.mc-grid > div { min-width: 0; }
 .mc-grid .ring { width: 72px; height: 72px; }
 .mc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mc-name { font-weight: 650; font-size: 14.5px; }
@@ -58,8 +59,8 @@ html, body { margin: 0; background: transparent; overflow: hidden; font: 13px/1.
 .mc-rows dt { color: var(--fg-2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .mc-rows dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The label gives way (…) so the numbers always fit. */
-.mc-rows dt { min-width: 0; }
-.mc-rows dt span { overflow: hidden; text-overflow: ellipsis; }
+.mc-rows > div, .mc-rows dt { min-width: 0; }
+.mc-rows dt span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .mc-rows dd { flex: none; max-width: 75%; }
 .mc-rows dd small { font-size: 10.5px; font-weight: 500; color: var(--fg-3); margin-right: 6px; }
 .sw { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
