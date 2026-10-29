@@ -21,7 +21,8 @@ use windows_sys::Win32::{
         WindowsAndMessaging::{
             CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer,
             RegisterClassW, RegisterWindowMessageW, SetTimer, TranslateMessage,
-            EVENT_SYSTEM_FOREGROUND, MSG, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
+            EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, MSG, OBJID_WINDOW, WINEVENT_OUTOFCONTEXT,
+            WINEVENT_SKIPOWNPROCESS,
             WM_SETTINGCHANGE, WM_TIMER, WNDCLASSW, WS_EX_TOOLWINDOW, WS_POPUP,
         },
     },
@@ -50,6 +51,7 @@ static mut WINDOW: HWND = std::ptr::null_mut();
 const TIMER_TICK: usize = 1;
 const TIMER_DEBOUNCE: usize = 2;
 const TIMER_REAPPLY: usize = 3;
+const TIMER_STYLE: usize = 4;
 
 fn emit(event: Event) {
     if let Some(cb) = CALLBACK.get() {
@@ -82,6 +84,21 @@ unsafe extern "system" fn on_win_event(
     }
 }
 
+/// A window was shown somewhere: let the window styler look at it.
+unsafe extern "system" fn on_show(
+    _hook: HWINEVENTHOOK,
+    _event: u32,
+    hwnd: HWND,
+    id_object: i32,
+    id_child: i32,
+    _thread: u32,
+    _time: u32,
+) {
+    if id_object == OBJID_WINDOW && id_child == 0 && !hwnd.is_null() {
+        super::styler::on_shown(hwnd as isize);
+    }
+}
+
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let created = TASKBAR_CREATED.load(Ordering::Relaxed);
     if created != 0 && msg == created {
@@ -104,6 +121,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                     unsafe { KillTimer(hwnd, TIMER_REAPPLY) };
                     emit(Event::Reapply);
                 }
+                TIMER_STYLE if super::styler::pending() => super::styler::tick(),
                 _ => {}
             }
             0
@@ -175,7 +193,17 @@ unsafe fn run() {
         if hook.is_null() {
             crate::log!("watcher", "SetWinEventHook failed; relying on the 2 s tick");
         }
+        SetWinEventHook(
+            EVENT_OBJECT_SHOW,
+            EVENT_OBJECT_SHOW,
+            std::ptr::null_mut(),
+            Some(on_show),
+            0,
+            0,
+            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+        );
         SetTimer(hwnd, TIMER_TICK, 2000, None);
+        SetTimer(hwnd, TIMER_STYLE, 300, None);
         SetTimer(hwnd, TIMER_REAPPLY, 2500, None);
         crate::log!("watcher", "started");
 

@@ -118,10 +118,67 @@ pub struct Config {
     pub windsurf: AgentConfig,
     pub deepseek: AgentConfig,
     pub antigravity: AgentConfig,
+    /// 視窗美化 (off by default).
+    pub style: StyleConfig,
 }
 
 /// Current settings format (bumped when a one-time migration is needed).
 pub const CONFIG_VERSION: u32 = 1;
+
+/// Which windows the window styler touches.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StyleTarget {
+    /// File Explorer windows only.
+    #[default]
+    Explorer,
+    /// Every normal window with a title bar (except excluded programs).
+    All,
+    /// Only the programs listed in `apps`.
+    Custom,
+}
+
+/// 視窗美化: DWM effects applied to other programs' windows, from outside —
+/// no code is injected into them.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StyleConfig {
+    pub enabled: bool,
+    pub target: StyleTarget,
+    /// Executable names for `Custom`, e.g. `notepad.exe`.
+    pub apps: Vec<String>,
+    /// Never touched, whatever the target.
+    pub exclude: Vec<String>,
+    /// none / mica / acrylic / tabbed
+    pub backdrop: String,
+    /// auto / dark / light
+    pub titlebar: String,
+    /// default / round / small / square
+    pub corners: String,
+    /// default / none / accent / "#rrggbb"
+    pub border: String,
+    /// Title bar colour "#rrggbb", or empty for the system's.
+    pub caption: String,
+    /// Let the backdrop show through the whole window (experimental: some programs draw black).
+    pub extend_frame: bool,
+}
+
+impl Default for StyleConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            target: StyleTarget::Explorer,
+            apps: Vec::new(),
+            exclude: Vec::new(),
+            backdrop: "acrylic".into(),
+            titlebar: "auto".into(),
+            corners: "round".into(),
+            border: "accent".into(),
+            caption: String::new(),
+            extend_frame: false,
+        }
+    }
+}
 
 /// Every AI DW Bar knows, in display order.
 pub const AGENTS: [&str; 7] = ["claude", "codex", "gemini", "antigravity", "cursor", "windsurf", "deepseek"];
@@ -147,6 +204,7 @@ impl Default for Config {
             windsurf: AgentConfig::default(),
             deepseek: AgentConfig::default(),
             antigravity: AgentConfig::default(),
+            style: StyleConfig::default(),
         }
     }
 }

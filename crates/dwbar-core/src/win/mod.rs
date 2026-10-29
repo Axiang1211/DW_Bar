@@ -5,6 +5,7 @@
 //! window is done by the app on its UI thread.
 pub mod embed;
 pub mod fullscreen;
+pub mod styler;
 pub mod taskbar;
 pub mod watcher;
 

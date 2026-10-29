@@ -84,6 +84,11 @@ fn reg_string(root: HKEY, key: &str, value: &str) -> Option<String> {
     Some(String::from_utf16_lossy(&buf[..len]))
 }
 
+/// A DWORD under HKEY_CURRENT_USER.
+pub fn reg_dword_pub(key: &str, value: &str) -> Option<u32> {
+    reg_dword(HKEY_CURRENT_USER, key, value)
+}
+
 /// Windows build number (22000+ is Windows 11).
 pub fn build() -> u32 {
     reg_string(HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CurrentBuildNumber")

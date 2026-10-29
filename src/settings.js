@@ -52,7 +52,7 @@ function toast(text) {
 // ───────── controls bound to config ─────────
 function bindControls() {
   $$("#posGrid button").forEach((b) => b.addEventListener("click", () => save({ position: b.dataset.pos })));
-  $$(".seg").forEach((seg) => {
+  $$(".seg[data-key]").forEach((seg) => {
     seg.addEventListener("click", (e) => {
       const b = e.target.closest("button");
       if (b) save({ [seg.dataset.key]: b.value });
@@ -70,6 +70,7 @@ function bindControls() {
     }),
   );
   $("#refreshMin").addEventListener("change", (e) => save({ refresh_minutes: parseInt(e.target.value, 10) }));
+  bindStyle();
   $("#widgetsToggle").addEventListener("change", async (e) => {
     const show = e.target.checked;
     try {
@@ -109,14 +110,70 @@ function bindControls() {
 }
 
 function syncControls() {
-  $$(".seg").forEach((seg) => {
+  $$(".seg[data-key]").forEach((seg) => {
     $$("button", seg).forEach((b) => b.setAttribute("aria-pressed", String(config[seg.dataset.key] === b.value)));
   });
   $$('input[type="checkbox"][data-key]').forEach((cb) => (cb.checked = !!config[cb.dataset.key]));
   syncPosition();
   if (document.activeElement !== $("#offset")) $("#offset").value = config.offset_x;
   $("#refreshMin").value = String(config.refresh_minutes);
+  syncStyle();
   $("#widgetsToggle").checked = !!state.placement.widgets;
+}
+
+// ───────── 視窗美化 ─────────
+const TARGET_DESC = {
+  explorer: "只美化檔案總管視窗。",
+  all: "所有有標題列的一般視窗（排除清單裡的程式除外）。",
+  custom: "只美化下方列出的程式。",
+};
+const lines = (t) => t.split(/[\n,，]+/).map((x) => x.trim()).filter(Boolean);
+function saveStyle(patch) {
+  save({ style: { ...config.style, ...patch } });
+}
+function bindStyle() {
+  $("#styleOn").addEventListener("change", (e) => saveStyle({ enabled: e.target.checked }));
+  $$("[data-style]").forEach((seg) =>
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (seg.dataset.style === "border" && b.value === "custom") saveStyle({ border: $("#borderColor").value });
+      else saveStyle({ [seg.dataset.style]: b.value });
+    }),
+  );
+  $("#borderColor").addEventListener("change", (e) => saveStyle({ border: e.target.value }));
+  $("#captionColor").addEventListener("change", (e) => saveStyle({ caption: e.target.value }));
+  $("#captionClear").addEventListener("click", () => saveStyle({ caption: "" }));
+  $("#styleExtend").addEventListener("change", (e) => saveStyle({ extend_frame: e.target.checked }));
+  $("#styleApps").addEventListener("change", (e) => saveStyle({ apps: lines(e.target.value) }));
+  $("#styleExclude").addEventListener("change", (e) => saveStyle({ exclude: lines(e.target.value) }));
+}
+function syncStyle() {
+  const st = config.style;
+  $("#styleOn").checked = st.enabled;
+  $("#styleGroup").classList.toggle("dim", !st.enabled);
+  $$("[data-style]").forEach((seg) => {
+    const key = seg.dataset.style;
+    let v = st[key];
+    if (key === "border" && v.startsWith("#")) v = "custom";
+    $$("button", seg).forEach((b) => b.setAttribute("aria-pressed", String(b.value === v)));
+  });
+  if (st.border.startsWith("#")) $("#borderColor").value = st.border;
+  $("#borderColor").hidden = !st.border.startsWith("#");
+  $("#captionColor").value = st.caption || "#202020";
+  $("#styleExtend").checked = st.extend_frame;
+  $("#targetDesc").textContent = TARGET_DESC[st.target] || "";
+  $("#appsRow").hidden = st.target !== "custom";
+  if (document.activeElement !== $("#styleApps")) $("#styleApps").value = st.apps.join("\n");
+  if (document.activeElement !== $("#styleExclude")) $("#styleExclude").value = st.exclude.join("\n");
+  // Preview
+  const prev = $("#stylePrev");
+  prev.dataset.backdrop = st.backdrop;
+  prev.dataset.corners = st.corners;
+  prev.dataset.titlebar = st.titlebar;
+  prev.dataset.extend = String(st.extend_frame);
+  prev.style.setProperty("--sp-border", st.border === "none" ? "transparent" : st.border === "accent" ? "var(--accent)" : st.border.startsWith("#") ? st.border : "var(--line)");
+  prev.style.setProperty("--sp-caption", st.caption || "transparent");
 }
 
 // ───────── 位置（九宮格） ─────────

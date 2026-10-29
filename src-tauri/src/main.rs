@@ -226,6 +226,16 @@ fn start_watcher(app: &AppHandle) {
 #[cfg(not(any(windows, feature = "lint-win")))]
 fn start_watcher(_app: &AppHandle) {}
 
+// ───────────────────────── window styler ─────────────────────────
+
+/// 視窗美化: restyle open windows on a worker thread (walks every window).
+fn apply_style(style: dwbar_core::config::StyleConfig) {
+    #[cfg(any(windows, feature = "lint-win"))]
+    std::thread::spawn(move || dwbar_core::win::styler::set_config(style));
+    #[cfg(not(any(windows, feature = "lint-win")))]
+    let _ = style;
+}
+
 // ───────────────────────── tray icon ─────────────────────────
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -277,6 +287,9 @@ fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
         }
         let changed = dwbar_core::config::AGENTS.iter().any(|a| s.config.agent(a) != config.agent(a))
             || s.config.refresh_minutes != config.refresh_minutes;
+        if s.config.style != config.style {
+            apply_style(config.style.clone());
+        }
         let autostart = (s.config.autostart != config.autostart).then_some(config.autostart);
         s.config = config;
         (changed, autostart)
@@ -452,6 +465,9 @@ fn quit(app: AppHandle) {
 
 fn quit_app(app: AppHandle) {
     app.state::<AppState>().inner.lock().unwrap().quitting = true;
+    // Give restyled windows their own look back.
+    #[cfg(any(windows, feature = "lint-win"))]
+    dwbar_core::win::styler::restore_all();
     log::write("app", "quit");
     app.exit(0);
 }
@@ -495,6 +511,7 @@ fn main() {
             create_tip(&handle);
             create_panel(&handle);
             start_watcher(&handle);
+            apply_style(handle.state::<AppState>().inner.lock().unwrap().config.style.clone());
             start_quota_thread(&handle);
             Ok(())
         })

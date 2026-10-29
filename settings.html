@@ -14,6 +14,7 @@
       <a href="#position" data-page="position">位置</a>
       <a href="#look" data-page="look">外觀</a>
       <a href="#agents" data-page="agents">AI 帳號</a>
+      <a href="#style" data-page="style">視窗美化</a>
       <a href="#general" data-page="general">一般</a>
       <a href="#diag" data-page="diag">診斷</a>
     </nav>
@@ -109,6 +110,55 @@
           <div class="row">
             <div class="lbl"><b>清除登入資料</b><span>登出 DW Bar 裡的所有帳號，並刪除這台電腦上 DW Bar 保存的登入狀態。</span></div>
             <button class="btn" id="clearAccounts">清除</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 視窗美化 -->
+      <section id="page-style" class="page">
+        <header><h1>視窗美化</h1><label class="switch big" title="啟用"><input type="checkbox" id="styleOn" /><i></i></label></header>
+        <p class="hint">替檔案總管或其他程式的視窗換上半透明材質、邊框顏色與圓角。只使用 Windows 公開的視窗效果設定，不會注入任何程式碼到其他程式，也不會讓檔案總管當掉；關掉或結束 DW Bar 時會還原。</p>
+        <div class="style-prev" id="stylePrev" aria-hidden="true">
+          <div class="sp-win"><div class="sp-bar"><i></i><i></i><i></i><span>檔案總管</span></div><div class="sp-body"><b></b><b></b><b></b></div></div>
+        </div>
+        <div class="group" id="styleGroup">
+          <div class="row">
+            <div class="lbl"><b>套用到</b><span id="targetDesc"></span></div>
+            <div class="seg" data-style="target"><button value="explorer">檔案總管</button><button value="all">所有視窗</button><button value="custom">指定程式</button></div>
+          </div>
+          <div class="row" id="appsRow">
+            <div class="lbl"><b>指定程式</b><span>程式檔名，一行一個，例如 notepad.exe、Code.exe</span>
+              <textarea class="path" id="styleApps" rows="3" spellcheck="false"></textarea></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>背景材質</b><span>標題列與分頁列的材質。亞克力最透明。</span></div>
+            <div class="seg" data-style="backdrop"><button value="none">無</button><button value="mica">Mica</button><button value="acrylic">亞克力</button><button value="tabbed">分頁式</button></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>標題列</b></div>
+            <div class="seg" data-style="titlebar"><button value="auto">跟隨程式</button><button value="dark">深色</button><button value="light">淺色</button></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>圓角</b></div>
+            <div class="seg" data-style="corners"><button value="default">預設</button><button value="round">圓角</button><button value="small">小圓角</button><button value="square">直角</button></div>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>邊框顏色</b></div>
+            <div class="seg" data-style="border"><button value="default">預設</button><button value="accent">強調色</button><button value="none">無邊框</button><button value="custom">自訂</button></div>
+            <input type="color" id="borderColor" class="swatch" title="自訂邊框顏色" />
+          </div>
+          <div class="row">
+            <div class="lbl"><b>標題列顏色</b><span>留空表示使用系統顏色。</span></div>
+            <input type="color" id="captionColor" class="swatch" title="標題列顏色" />
+            <button class="btn small" id="captionClear">清除</button>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>整個視窗透出材質（實驗）</b><span>讓材質延伸到整個視窗。部分程式會變黑或文字難以閱讀，遇到時把它加進下方排除清單。檔案總管內容區的半透明需要注入程式碼，DW Bar 不做。</span></div>
+            <label class="switch"><input type="checkbox" id="styleExtend" /><i></i></label>
+          </div>
+          <div class="row">
+            <div class="lbl"><b>排除程式</b><span>一行一個。遊戲、防作弊程式、遠端桌面與系統提示預設已排除。</span>
+              <textarea class="path" id="styleExclude" rows="3" spellcheck="false"></textarea></div>
           </div>
         </div>
       </section>
