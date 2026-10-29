@@ -4,16 +4,17 @@ DW Bar 的官方網站（靜態頁面 + Cloudflare Pages Functions）。
 
 - `index.html` 介紹、使用方式、安裝須知、常見問題、下載
 - `privacy.html`、`terms.html` 隱私權政策、服務條款
-- `functions/download.js`、`functions/download/[os].js` `/download/<win-x64|win-arm64|win-msi|mac>`：直接串流最新版安裝檔，網址不離開本站
-- `_redirects`：Functions 沒有啟用時的備援，直接導向安裝檔本身（一樣會直接開始下載）
-- `functions/api/latest.js` `/api/latest`：目前版本與檔案大小
+- `worker.js` + `wrangler.jsonc`：Cloudflare Worker。`/download/<win-x64|win-arm64|win-msi|mac>` 直接串流最新版安裝檔（網址不離開本站），`/api/latest` 提供版本與檔案大小；其他路徑是靜態檔
+- `functions/`：實際的下載與版本程式（Worker 引用；若改用 Pages 專案也能直接當 Pages Functions）
+- `_redirects`：備援，萬一程式沒在跑，直接導向安裝檔本身
+- `.assetsignore`：不對外公開的檔案（程式碼、設定）
 
-## 部署（Cloudflare Pages，跟其他 app.dreamsworld.top 子網站一樣）
+## 部署（Cloudflare Workers，連接 Git）
 
-1. Cloudflare 後台 → Workers & Pages → 建立 → Pages → 連接 Git → 選 `Axiang1211/DW_Bar`
-2. 建置設定：框架「無」、建置命令留空、**根目錄 `site`**、輸出目錄 `/`
-3. 部署完成後 → 自訂網域 → 新增 `dwbar.app.dreamsworld.top`（網域在 Cloudflare 上會自動加 DNS）
+Cloudflare 後台 → Workers 和 Pages → `dw-bar` → 設定 → 建置：
 
-**注意**：Functions 只有「連接 Git」的 Pages 專案才會啟用；用拖放上傳或建立成 Worker 的話，下載會走 `_redirects` 備援。根目錄一定要設成 `site`（而不是把輸出目錄設成 `site`），否則 `functions` 資料夾不會被讀到。
+- Git 存放庫 `Axiang1211/DW_Bar`，生產分支 `main`
+- 組建命令 `npm run build`、部署命令 `npx wrangler deploy`、**根目錄 `site`**
+- 自訂網域 `dwbar.app.dreamsworld.top`
 
-之後每次推送到 `main`：GitHub Actions 會打包並發布新版本，網站的下載按鈕自動提供最新版。
+之後每次推送到 `main`：GitHub Actions 會打包並發布新版本，Cloudflare 自動重新部署網站，下載按鈕自動提供最新版。

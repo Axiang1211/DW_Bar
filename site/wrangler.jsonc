@@ -1,0 +1,12 @@
+{
+  // Cloudflare Workers Builds: root directory "site", deploy command "npx wrangler deploy".
+  "name": "dw-bar",
+  "main": "worker.js",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    // The Worker answers these before static files (and before _redirects).
+    "run_worker_first": ["/download", "/download/*", "/api/*"]
+  }
+}

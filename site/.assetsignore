@@ -1,0 +1,7 @@
+worker.js
+wrangler.jsonc
+package.json
+functions
+README.md
+node_modules
+.wrangler

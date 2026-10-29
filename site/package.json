@@ -1,0 +1,8 @@
+{
+  "name": "dwbar-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"static site, nothing to build\""
+  }
+}
