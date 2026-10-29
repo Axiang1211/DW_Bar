@@ -15,6 +15,6 @@ Cloudflare 後台 → Workers 和 Pages → `dw-bar` → 設定 → 建置：
 
 - Git 存放庫 `Axiang1211/DW_Bar`，生產分支 `main`
 - 組建命令 `npm run build`、部署命令 `npx wrangler deploy`、**根目錄 `site`**
-- 自訂網域 `dwbar.app.dreamsworld.top`
+- 自訂網域 `dwbar.app.dreamsworld.top`（安裝步驟用 `site/package-lock.json`，請一起提交）
 
 之後每次推送到 `main`：GitHub Actions 會打包並發布新版本，Cloudflare 自動重新部署網站，下載按鈕自動提供最新版。
