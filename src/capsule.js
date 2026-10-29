@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, win, level, tooltip, applyTheme } from "./common.js";
+import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme } from "./common.js";
 
 const cap = $("#cap");
 let lastWidth = 0;
@@ -16,8 +16,14 @@ function render(state) {
     for (const q of shown) {
       const el = item(q.agent, q, tooltip(q), q.ok ? "usage" : "agents");
       if (!q.ok) el.classList.add("off");
-      if (state.config.show_percent && q.ok) {
-        const r = left(win(q, "five_hour")) ?? left(win(q, "week"));
+      if (q.ok && !q.windows.length && q.balance) {
+        // Balance-only AIs (DeepSeek API) have no rings to fill; show the balance itself.
+        const p = document.createElement("span");
+        p.className = "pct";
+        p.textContent = q.balance;
+        el.append(p);
+      } else if (state.config.show_percent && q.ok) {
+        const r = left(shortWin(q)) ?? left(longWin(q));
         if (r != null) {
           const p = document.createElement("span");
           p.className = `pct lv-${level(r)}`;

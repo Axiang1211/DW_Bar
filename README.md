@@ -4,7 +4,7 @@
 
 外圈上半弧是 **5 小時額度**，內圈是 **每週額度**，綠／黃／紅代表剩多少。滑鼠停在圖示上看詳細，點一下開設定。
 
-> 目前版本 **v0.2**：工作列嵌入與定位、Claude／Codex 額度、在 DW Bar 內連結帳號、設定視窗、全螢幕自動隱藏。
+> 目前版本 **v0.3**：支援 Claude、Codex（ChatGPT）、Gemini、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
 
 ## 下載安裝（不用裝任何開發工具）
 
@@ -13,8 +13,8 @@
 1. 打開本專案的 **Actions** 分頁
 2. 點最上面一筆綠色勾勾的 **Build**
 3. 往下捲到 **Artifacts**，下載 **DW-Bar-Windows**（zip）
-4. 解壓縮，執行 `DW Bar_0.2.1_x64-setup.exe`（或 `.msi`）
-5. 打開設定 →「AI 帳號」→ 按「連結 Claude 帳號」或「連結 ChatGPT 帳號」，在跳出的官方登入頁登入
+4. 解壓縮，執行 `DW Bar_0.3.0_x64-setup.exe`（或 `.msi`）
+5. 打開設定 →「AI 帳號」→ 按想要的 AI 的「連結」按鈕，在跳出的官方登入頁登入
 
 不需要安裝任何命令列工具。
 
@@ -24,8 +24,17 @@
 
 每個 AI 依序嘗試：
 
-1. **在 DW Bar 內連結的帳號**：登入在官方網站（claude.ai、chatgpt.com）上完成，Google／Apple／Microsoft 登入都可以；DW Bar 不會看到密碼，登入狀態只存在這台電腦的 DW Bar 裡。之後由隱藏視窗在同一個網站上讀取官方網頁版自己使用的用量資料。
-2. **命令列工具或桌面 App 內建的引擎**：有裝 `claude`／`codex`，或 Claude、ChatGPT／Codex 桌面 App 內附的引擎時自動使用。
+1. **在 DW Bar 內連結的帳號**：登入在官方網站上完成，Google／Apple／Microsoft 登入都可以；DW Bar 不會看到密碼，登入狀態只存在這台電腦的 DW Bar 裡。之後由隱藏視窗在同一個網站上讀取官方網頁版自己使用的用量資料。
+2. **命令列工具或桌面 App 內建的引擎**（Claude、Codex）：有裝 `claude`／`codex`，或 Claude、ChatGPT／Codex 桌面 App 內附的引擎時自動使用。
+
+| AI | 連結的網站 | 顯示 |
+|---|---|---|
+| Claude | claude.ai | 5 小時、每週 |
+| Codex | chatgpt.com | 5 小時、每週（Codex 額度） |
+| Gemini | gemini.google.com | 5 小時、每週 |
+| Cursor | cursor.com | 本期方案額度、按量餘額 |
+| Windsurf | windsurf.com | 每日、每週 |
+| DeepSeek（DSH） | platform.deepseek.com | API 餘額 |
 
 官網的用量資料不是公開 API，網站改版時可能需要更新 DW Bar。
 
@@ -39,7 +48,7 @@
 | 全螢幕隱藏 | `SHQueryUserNotificationState` ＋ 前景視窗蓋滿螢幕判斷，300 ms 防抖。 |
 | Claude 額度 | 連結的 claude.ai 帳號，或 `claude` 的 `get_usage`。 |
 | Codex 額度 | 連結的 ChatGPT 帳號，或 `codex app-server` 的 `account/rateLimits/read`。 |
-| 桌面 App 偵測 | 偵測 Claude、ChatGPT、Codex 桌面 App（含 Microsoft Store 版）。 |
+| 桌面 App 偵測 | 掃描程式資料夾、Microsoft Store 套件與開始功能表捷徑（也包含從 Chrome／Edge 安裝的網頁 App）。 |
 | 設定視窗 | 用量、位置、外觀、AI 帳號、一般（開機啟動、更新頻率）、診斷（紀錄與狀態）。 |
 
 沒有桌面 App、命令列工具，也沒有連結帳號的 AI 不會出現在工作列。設定存在 `%LOCALAPPDATA%\DWBar\config.json`，紀錄在 `%LOCALAPPDATA%\DWBar\logs\`。
@@ -82,5 +91,5 @@ settings.html          設定視窗
 
 ## 致謝
 
-- 額度讀取的做法參考 [Agent HUD Open](https://github.com/jazzenchen/agent-hud-open)（Apache-2.0），本專案為獨立實作。
+- 額度讀取的做法參考 [Agent HUD Open](https://github.com/jazzenchen/agent-hud-open)（Apache-2.0）與 [CodexBar](https://github.com/steipete/CodexBar)（MIT），本專案為獨立實作。
 - 部分方向參考 ZenDesktop 的公開說明，未使用其程式碼。

@@ -866,7 +866,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dw-bar"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "dwbar-core",
  "serde",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "dwbar-core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "serde",

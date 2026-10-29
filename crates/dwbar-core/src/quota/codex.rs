@@ -106,6 +106,8 @@ pub fn parse_limits(result: &Value) -> Reading {
         let label = match period {
             Period::FiveHour => "5 小時".to_string(),
             Period::Week => "每週".to_string(),
+            Period::Day => "每日".to_string(),
+            Period::Month => "每月".to_string(),
             Period::Other => minutes.map(|m| format!("{} 小時", m / 60)).unwrap_or_default(),
         };
         reading.windows.push(Window {

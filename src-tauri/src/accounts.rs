@@ -10,7 +10,7 @@
 use crate::state::AppState;
 use dwbar_core::{
     apps::{self, Detected},
-    config::AgentConfig,
+    config::{AgentConfig, AGENTS},
     locate, log,
     quota::{
         self,
@@ -31,39 +31,43 @@ use tauri::{
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
-pub const AGENTS: [&str; 2] = ["claude", "codex"];
-
 fn display_name(agent: &str) -> &'static str {
     match agent {
         "claude" => "Claude",
         "codex" => "Codex",
+        "gemini" => "Gemini",
+        "cursor" => "Cursor",
+        "windsurf" => "Windsurf",
+        "deepseek" => "DeepSeek",
         _ => "AI",
     }
 }
 
-fn command(agent: &str) -> &'static str {
+/// The CLI that can also report this AI's usage, when there is one.
+fn command(agent: &str) -> Option<&'static str> {
     match agent {
-        "claude" => "claude",
-        _ => "codex",
+        "claude" => Some("claude"),
+        "codex" => Some("codex"),
+        _ => None,
     }
 }
 
 fn agent_config(app: &AppHandle, agent: &str) -> AgentConfig {
     let state = app.state::<AppState>();
     let s = state.inner.lock().unwrap();
-    match agent {
-        "claude" => s.config.claude.clone(),
-        _ => s.config.codex.clone(),
-    }
+    s.config.agent(agent).clone()
+}
+
+fn index(agent: &str) -> usize {
+    AGENTS.iter().position(|a| *a == agent).unwrap_or(0)
 }
 
 // ───────────────────────── reading ─────────────────────────
 
-static CLAUDE_BUSY: Mutex<()> = Mutex::new(());
-static CHATGPT_BUSY: Mutex<()> = Mutex::new(());
+static BUSY: [Mutex<()>; 6] = [const { Mutex::new(()) }; 6];
 
 fn busy(service: &Service) -> &'static Mutex<()> {
-    if service.agent == "claude" { &CLAUDE_BUSY } else { &CHATGPT_BUSY }
+    &BUSY[index(service.agent)]
 }
 
 /// Evaluate `js` in `win` and return its JSON result (the value, not its string form).
@@ -148,11 +152,8 @@ pub fn read_web(app: &AppHandle, service: Service) -> Outcome {
 pub fn read_agent(app: &AppHandle, agent: &str, detected: &Detected) -> Reading {
     let cfg = agent_config(app, agent);
     let name = display_name(agent);
-    let cli = locate::find(command(agent), cfg.custom_path.as_deref()).is_some();
-    let app_installed = match agent {
-        "claude" => detected.claude_app,
-        _ => detected.chatgpt_app || detected.codex_app,
-    };
+    let cli = command(agent).is_some_and(|c| locate::find(c, cfg.custom_path.as_deref()).is_some());
+    let app_installed = detected.has(agent);
 
     let from_cli = |why: Option<String>| -> Reading {
         if cli {
@@ -166,10 +167,7 @@ pub fn read_agent(app: &AppHandle, agent: &str, detected: &Detected) -> Reading 
         match web::service_for(agent) {
             Some(service) => match read_web(app, service) {
                 Outcome::Ok(data) => {
-                    let r = match agent {
-                        "claude" => web::parse_claude(&data),
-                        _ => web::parse_chatgpt(&data, dwbar_core::now()),
-                    };
+                    let r = web::parse(agent, &data, dwbar_core::now());
                     quota::log_reading(&r);
                     r
                 }
@@ -202,10 +200,7 @@ pub fn read_all(app: &AppHandle) -> Vec<Reading> {
     let enabled: Vec<&str> = {
         let state = app.state::<AppState>();
         let s = state.inner.lock().unwrap();
-        AGENTS
-            .into_iter()
-            .filter(|a| if *a == "claude" { s.config.claude.enabled } else { s.config.codex.enabled })
-            .collect()
+        AGENTS.into_iter().filter(|a| s.config.agent(a).enabled).collect()
     };
     let jobs: Vec<_> = enabled
         .into_iter()
@@ -220,11 +215,10 @@ pub fn read_all(app: &AppHandle) -> Vec<Reading> {
 
 // ───────────────────────── linking ─────────────────────────
 
-static LINKING_CLAUDE: AtomicBool = AtomicBool::new(false);
-static LINKING_CHATGPT: AtomicBool = AtomicBool::new(false);
+static LINKING: [AtomicBool; 6] = [const { AtomicBool::new(false) }; 6];
 
 fn linking(service: &Service) -> &'static AtomicBool {
-    if service.agent == "claude" { &LINKING_CLAUDE } else { &LINKING_CHATGPT }
+    &LINKING[index(service.agent)]
 }
 
 fn login_label(service: &Service) -> String {
@@ -271,6 +265,9 @@ fn build_login(app: &AppHandle, service: Service, label: &str) {
 fn watch_login(app: AppHandle, service: Service) {
     let label = login_label(&service);
     let flag = linking(&service);
+    // Some sites show a public page on the same address before sign-in (Gemini), so a
+    // failed check is only repeated when the page changes, or every 15 s.
+    let mut last_try: Option<(String, Instant)> = None;
     loop {
         std::thread::sleep(Duration::from_secs(2));
         let Some(win) = app.get_webview_window(&label) else { return };
@@ -279,9 +276,17 @@ fn watch_login(app: AppHandle, service: Service) {
         };
         let host = loc[0].as_str().unwrap_or_default();
         let path = loc[1].as_str().unwrap_or_default();
-        if !web::looks_signed_in(&service, host, path) || flag.swap(true, Ordering::SeqCst) {
+        if !web::looks_signed_in(&service, host, path) {
             continue;
         }
+        let here = format!("{host}{path}");
+        if last_try.as_ref().is_some_and(|(at, when)| *at == here && when.elapsed() < Duration::from_secs(15)) {
+            continue;
+        }
+        if flag.swap(true, Ordering::SeqCst) {
+            continue;
+        }
+        last_try = Some((here, Instant::now()));
         let linked = finish_link(&app, service);
         flag.store(false, Ordering::SeqCst);
         if linked {
@@ -297,15 +302,12 @@ fn watch_login(app: AppHandle, service: Service) {
 fn finish_link(app: &AppHandle, service: Service) -> bool {
     match read_web(app, service) {
         Outcome::Ok(data) => {
-            let mut reading = match service.agent {
-                "claude" => web::parse_claude(&data),
-                _ => web::parse_chatgpt(&data, dwbar_core::now()),
-            };
+            let mut reading = web::parse(service.agent, &data, dwbar_core::now());
             reading.installed = true;
             let config = {
                 let state = app.state::<AppState>();
                 let mut s = state.inner.lock().unwrap();
-                let entry = if service.agent == "claude" { &mut s.config.claude } else { &mut s.config.codex };
+                let entry = s.config.agent_mut(service.agent);
                 entry.connected = true;
                 entry.enabled = true;
                 reading.cli = entry.custom_path.is_some();
@@ -336,8 +338,7 @@ pub fn unlink(app: &AppHandle, agent: &str) {
     let config = {
         let state = app.state::<AppState>();
         let mut s = state.inner.lock().unwrap();
-        let entry = if agent == "claude" { &mut s.config.claude } else { &mut s.config.codex };
-        entry.connected = false;
+        s.config.agent_mut(agent).connected = false;
         s.config.clone()
     };
     let _ = config.save();

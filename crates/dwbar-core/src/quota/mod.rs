@@ -22,8 +22,12 @@ use serde::Serialize;
 pub enum Period {
     /// Rolling 5-hour window → the upper half arc.
     FiveHour,
+    /// Daily window (Windsurf) → the upper half arc when there is no 5-hour window.
+    Day,
     /// Weekly window → the inner circle.
     Week,
+    /// Billing month (Cursor) → the inner circle when there is no weekly window.
+    Month,
     /// Anything else (model-specific weekly caps, etc.) – shown in the card only.
     Other,
 }
@@ -131,7 +135,9 @@ pub fn log_reading(r: &Reading) {
 pub(crate) fn period_for_minutes(minutes: Option<i64>) -> Period {
     match minutes {
         Some(m) if (240..=360).contains(&m) => Period::FiveHour,
+        Some(m) if (1380..=1500).contains(&m) => Period::Day,
         Some(m) if (6 * 1440..=8 * 1440).contains(&m) => Period::Week,
+        Some(m) if (27 * 1440..=32 * 1440).contains(&m) => Period::Month,
         _ => Period::Other,
     }
 }

@@ -260,3 +260,7 @@ details summary { cursor: pointer; width: max-content; }
 .card.welcome b { font-size: 16px; }
 .card.welcome p { color: var(--fg-2); margin: 6px 0 0; }
 .meta .src { margin-left: auto; color: var(--fg-3); }
+
+.bigbal { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; }
+.bigbal small { color: var(--fg-3); }
+.bigbal b { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }

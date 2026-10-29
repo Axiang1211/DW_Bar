@@ -9,8 +9,12 @@ export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
 /** Short names and monograms. Original letterforms – no vendor logos are drawn. */
 export const AGENTS = {
-  claude: { name: "Claude", mono: "C", account: "Claude 帳號", site: "claude.ai" },
-  codex: { name: "Codex", mono: "X", account: "ChatGPT 帳號", site: "chatgpt.com，讀取 Codex 額度" },
+  claude: { name: "Claude", mono: "C", cli: true, account: "Claude 帳號", site: "claude.ai" },
+  codex: { name: "Codex", mono: "X", cli: true, account: "ChatGPT 帳號", site: "chatgpt.com，讀取 Codex 額度" },
+  gemini: { name: "Gemini", mono: "G", account: "Google 帳號", button: "連結 Gemini（Google 帳號）", site: "gemini.google.com" },
+  cursor: { name: "Cursor", mono: "Cu", account: "Cursor 帳號", site: "cursor.com，讀取本期方案額度" },
+  windsurf: { name: "Windsurf", mono: "W", account: "Windsurf 帳號", site: "windsurf.com，讀取每日／每週額度" },
+  deepseek: { name: "DeepSeek", mono: "D", account: "DeepSeek 帳號", site: "platform.deepseek.com，讀取 API 餘額（DSH）" },
   dw: { name: "DW Bar", mono: "DW" },
 };
 
@@ -26,6 +30,9 @@ export function level(remaining) {
 }
 
 export const win = (reading, period) => reading?.windows?.find((w) => w.period === period) || null;
+/** Outer half arc: the short window (5 h, else daily). Inner circle: the long one (week, else month). */
+export const shortWin = (r) => win(r, "five_hour") || win(r, "day");
+export const longWin = (r) => win(r, "week") || win(r, "month");
 
 /** "14:30" today, "週四 09:00" this week, "10/31 09:00" later. */
 export function resetText(unix) {
@@ -55,8 +62,8 @@ export function untilText(unix) {
 const HALF = "M6.5 50 A43.5 43.5 0 0 1 93.5 50";
 
 export function ringSVG(agent, reading) {
-  const h5 = left(win(reading, "five_hour"));
-  const wk = left(win(reading, "week"));
+  const h5 = left(shortWin(reading));
+  const wk = left(longWin(reading));
   const off = (v) => (v == null ? 100 : 100 - v);
   const mono = AGENTS[agent]?.mono || agent.slice(0, 1).toUpperCase();
   return `<svg viewBox="0 0 100 100" aria-hidden="true">

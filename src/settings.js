@@ -113,7 +113,7 @@ function bar(w, weekly) {
 
 function connectButton(agent, primary = true) {
   const a = AGENTS[agent];
-  return `<button class="btn${primary ? " primary" : ""}" data-connect="${agent}">連結 ${a.account}</button>`;
+  return `<button class="btn${primary ? " primary" : ""}" data-connect="${agent}">${a.button || "連結 " + a.account}</button>`;
 }
 
 function renderUsage() {
@@ -131,14 +131,16 @@ function renderUsage() {
       : `<article class="card welcome">
           <b>連結你的 AI 帳號</b>
           <p>登入後，工作列就會顯示 5 小時與每週額度。登入是在官方網站上完成，DW Bar 不會看到你的密碼。</p>
-          <div class="acts">${connectButton("claude")}${connectButton("codex", false)}</div>
+          <div class="acts">${Object.keys(AGENTS).filter((id) => id !== "dw").map((id, i) => connectButton(id, i === 0)).join("")}</div>
         </article>`;
     return;
   }
   cards.innerHTML = shown
     .map((q) => {
       let body;
-      if (q.ok) body = q.windows.map((w) => bar(w, w.period === "week")).join("");
+      if (q.ok) body = q.windows.length
+        ? q.windows.map((w) => bar(w, w.period === "week" || w.period === "month")).join("")
+        : `<div class="bigbal"><small>餘額</small><b>${escapeHtml(q.balance || "—")}</b></div>`;
       else {
         const cta = q.connected
           ? `<button class="btn" data-connect="${q.agent}">重新登入</button>`
@@ -173,7 +175,7 @@ function renderAgents() {
           <b>${a.name}</b>
           <span class="acct"></span>
           <span class="where"></span>
-          <details><summary>進階：指定命令列工具路徑</summary>
+          <details${a.cli ? "" : " hidden"}><summary>進階：指定命令列工具路徑</summary>
             <input class="path" placeholder="選填，例如 C:\\Users\\你\\.local\\bin\\${id === "claude" ? "claude" : "codex"}.exe" spellcheck="false" />
           </details>
         </div>

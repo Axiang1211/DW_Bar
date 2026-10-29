@@ -4,51 +4,86 @@
 //! run on every refresh. Covers the per-user installers and Microsoft Store (MSIX)
 //! packages, whose data folders live under `%LOCALAPPDATA%\Packages`.
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+};
 
+/// The AIs whose desktop app (or installed web app) was found, by agent id.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
-pub struct Detected {
-    /// Claude desktop app (claude.ai).
-    pub claude_app: bool,
-    /// ChatGPT desktop app.
-    pub chatgpt_app: bool,
-    /// Codex desktop app.
-    pub codex_app: bool,
+pub struct Detected(pub BTreeSet<String>);
+
+impl Detected {
+    pub fn has(&self, agent: &str) -> bool {
+        self.0.contains(agent)
+    }
 }
 
 fn env_path(key: &str) -> Option<PathBuf> {
     std::env::var_os(key).map(PathBuf::from)
 }
 
-/// Names of the folders directly inside `dir` (lower-cased).
-fn folder_names(dir: &Path) -> Vec<String> {
-    std::fs::read_dir(dir)
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter(|e| e.path().is_dir())
-        .filter_map(|e| e.file_name().to_str().map(str::to_lowercase))
-        .collect()
+/// Lower-cased names (folders and files, extension stripped) inside `dir`, `depth` levels deep.
+fn names_in(dir: &Path, depth: usize, out: &mut Vec<String>) {
+    for entry in std::fs::read_dir(dir).into_iter().flatten().filter_map(Result::ok) {
+        let path = entry.path();
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+            out.push(stem.to_lowercase());
+        }
+        if depth > 1 && path.is_dir() {
+            names_in(&path, depth - 1, out);
+        }
+    }
 }
 
+/// Words that identify each AI's app in folder / shortcut names.
+const NEEDLES: [(&str, &[&str]); 6] = [
+    ("claude", &["claude", "anthropic"]),
+    ("codex", &["chatgpt", "codex", "openai.chatgpt"]),
+    ("gemini", &["gemini"]),
+    ("cursor", &["cursor"]),
+    ("windsurf", &["windsurf"]),
+    ("deepseek", &["deepseek"]),
+];
+
+fn matches(agent: &str, needles: &[&str], name: &str) -> bool {
+    if needles.iter().any(|n| name.contains(n)) {
+        return true;
+    }
+    // "DSH" is too short to match anywhere in a name; require it as a whole word.
+    agent == "deepseek" && name.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w == "dsh")
+}
+
+/// Scan the usual install locations: per-user and machine-wide program folders,
+/// Microsoft Store package folders, and Start menu shortcuts (which also catch
+/// web apps installed from Chrome or Edge).
 pub fn detect() -> Detected {
+    let mut names = Vec::new();
     let local = env_path("LOCALAPPDATA");
     let roaming = env_path("APPDATA");
-    let packages = local.as_ref().map(|l| folder_names(&l.join("Packages"))).unwrap_or_default();
-    let programs = local.as_ref().map(|l| folder_names(&l.join("Programs"))).unwrap_or_default();
-    let has_pkg = |needle: &str| packages.iter().any(|p| p.contains(needle));
-    let has_prog = |name: &str| programs.iter().any(|p| p == name);
-    let exists = |p: Option<PathBuf>| p.is_some_and(|p| p.exists());
-
-    Detected {
-        claude_app: exists(local.as_ref().map(|l| l.join("AnthropicClaude")))
-            || exists(roaming.as_ref().map(|r| r.join("Claude")))
-            || has_prog("claude")
-            || packages.iter().any(|p| p.starts_with("claude_") || p.starts_with("anthropic")),
-        chatgpt_app: has_pkg("chatgpt") || has_prog("chatgpt"),
-        codex_app: (has_pkg("openai.codex") || has_prog("codex"))
-            || exists(local.as_ref().map(|l| l.join("OpenAI").join("Codex"))),
+    if let Some(l) = &local {
+        names_in(&l.join("Programs"), 1, &mut names);
+        names_in(&l.join("Packages"), 1, &mut names);
+        names_in(l, 1, &mut names); // e.g. AnthropicClaude
     }
+    for key in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(p) = env_path(key) {
+            names_in(&p, 1, &mut names);
+        }
+    }
+    if let Some(r) = &roaming {
+        names_in(&r.join("Microsoft").join("Windows").join("Start Menu").join("Programs"), 3, &mut names);
+    }
+    if let Some(p) = env_path("ProgramData") {
+        names_in(&p.join("Microsoft").join("Windows").join("Start Menu").join("Programs"), 3, &mut names);
+    }
+    let mut found = BTreeSet::new();
+    for (agent, needles) in NEEDLES {
+        if names.iter().any(|n| matches(agent, needles, n)) {
+            found.insert(agent.to_string());
+        }
+    }
+    Detected(found)
 }
 
 /// Newest `<dir>/<version>/<exe>` (by modification time).
@@ -94,4 +129,17 @@ pub fn bundled_engines(command: &str) -> Vec<PathBuf> {
         _ => {}
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn name_matching() {
+        assert!(matches("deepseek", &["deepseek"], "dsh desktop"));
+        assert!(!matches("deepseek", &["deepseek"], "dashboard"));
+        assert!(matches("codex", &["chatgpt", "codex"], "openai.chatgpt-desktop_2p2nqsd0c76g0"));
+        assert!(matches("claude", &["claude", "anthropic"], "anthropicclaude"));
+    }
 }

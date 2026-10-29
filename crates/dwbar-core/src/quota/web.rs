@@ -22,7 +22,11 @@ pub struct Service {
     /// A small same-origin page the hidden window loads before running the script.
     pub probe_url: &'static str,
     pub script: &'static str,
+    /// Paths on `host` that are still part of signing in.
+    pub flow: &'static [&'static str],
 }
+
+const DEFAULT_FLOW: &[&str] = &["/login", "/auth", "/logout", "/magic-link", "/sso", "/verify", "/api/", "/sign-in", "/signin", "/account/login", "/account/register"];
 
 /// The script stores its answer in `window.__dwbar`; the app polls [`POLL`] until `done`.
 pub const POLL: &str = "JSON.stringify(window.__dwbar || null)";
@@ -79,6 +83,7 @@ pub const CLAUDE: Service = Service {
     login_url: "https://claude.ai/login",
     probe_url: "https://claude.ai/api/organizations",
     script: CLAUDE_SCRIPT,
+    flow: DEFAULT_FLOW,
 };
 
 pub const CHATGPT: Service = Service {
@@ -88,22 +93,347 @@ pub const CHATGPT: Service = Service {
     login_url: "https://chatgpt.com/auth/login",
     probe_url: "https://chatgpt.com/api/auth/session",
     script: CHATGPT_SCRIPT,
+    flow: DEFAULT_FLOW,
+};
+
+// Gemini app: the persisted UsagePageQuery that gemini.google.com/usage runs.
+const GEMINI_SCRIPT: &str = r#"
+window.__dwbar = null;
+(async () => {
+  try {
+    const sig = "2/dWbCvkVB0X16r9NPnxifeOAAqdCqMf0xeWvau9yPy7g=";
+    const vars = JSON.stringify({
+      g1Request: { entrypoints: ["GEMINI_USAGE_SETTINGS_UPGRADE_BANNER"] },
+      workspaceRequest: { recommendationsForSurfaceRequests: [] },
+    });
+    const url = "/_/BardChatUi/graphql/schemas/GEMINI_WEB_GRAPHQL/executeQuery?query_signature=" +
+      encodeURIComponent(sig) + "&variables=" + encodeURIComponent(vars);
+    const r = await fetch(url, { credentials: "include", headers: { accept: "application/json" } });
+    if (r.status === 401 || r.status === 403) throw new Error("not_signed_in");
+    if (!r.ok) throw new Error("http_" + r.status);
+    let text = (await r.text()).trim();
+    if (text.startsWith("<")) throw new Error("not_signed_in");
+    text = text.replace(/^\)\]\}'\s*/, "");
+    const parsed = JSON.parse(text);
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    const data = list.map((x) => x && x.data).filter(Boolean).find((d) => "viewer" in d);
+    if (!data) throw new Error("unrecognised_response");
+    if (data.viewer === null) throw new Error("not_signed_in");
+    const usage = data.viewer.rpcs && data.viewer.rpcs.getUsageInfo;
+    if (!usage) throw new Error("unrecognised_response");
+    window.__dwbar = { done: true, ok: true, data: { usage } };
+  } catch (e) {
+    window.__dwbar = { done: true, ok: false, error: String((e && e.message) || e) };
+  }
+})();
+"#;
+
+pub const GEMINI: Service = Service {
+    agent: "gemini",
+    label: "Google",
+    host: "gemini.google.com",
+    login_url: "https://gemini.google.com/usage",
+    probe_url: "https://gemini.google.com/robots.txt",
+    script: GEMINI_SCRIPT,
+    flow: DEFAULT_FLOW,
+};
+
+const CURSOR_SCRIPT: &str = r#"
+window.__dwbar = null;
+(async () => {
+  const get = async (path) => {
+    const r = await fetch(path, { credentials: "include", headers: { accept: "application/json" } });
+    if (r.status === 401 || r.status === 403) throw new Error("not_signed_in");
+    if (!r.ok) throw new Error("http_" + r.status);
+    return r.json();
+  };
+  try {
+    const summary = await get("/api/usage-summary");
+    let email = null;
+    try { const me = await get("/api/auth/me"); email = me.email || null; } catch (_) {}
+    window.__dwbar = { done: true, ok: true, data: { summary, email } };
+  } catch (e) {
+    window.__dwbar = { done: true, ok: false, error: String((e && e.message) || e) };
+  }
+})();
+"#;
+
+pub const CURSOR: Service = Service {
+    agent: "cursor",
+    label: "Cursor",
+    host: "cursor.com",
+    login_url: "https://cursor.com/dashboard",
+    probe_url: "https://cursor.com/robots.txt",
+    script: CURSOR_SCRIPT,
+    flow: DEFAULT_FLOW,
+};
+
+// Windsurf: ConnectRPC GetPlanStatus over protobuf, with the devin_* session from localStorage.
+const WINDSURF_SCRIPT: &str = r#"
+window.__dwbar = null;
+(async () => {
+  try {
+    const read = (k) => { const v = localStorage.getItem(k); if (!v) return null; try { return JSON.parse(v); } catch (_) { return v; } };
+    const token = read("devin_session_token");
+    if (!token) throw new Error("not_signed_in");
+    const bytes = new TextEncoder().encode(String(token));
+    const len = []; let n = bytes.length;
+    while (n >= 0x80) { len.push((n & 0x7f) | 0x80); n = Math.floor(n / 128); }
+    len.push(n);
+    const body = new Uint8Array([0x0a, ...len, ...bytes, 0x10, 0x01]);
+    const r = await fetch("/_backend/exa.seat_management_pb.SeatManagementService/GetPlanStatus", {
+      method: "POST", credentials: "include", body,
+      headers: {
+        "content-type": "application/proto", "connect-protocol-version": "1",
+        "x-auth-token": String(token), "x-devin-session-token": String(token),
+        "x-devin-auth1-token": String(read("devin_auth1_token") || ""),
+        "x-devin-account-id": String(read("devin_account_id") || ""),
+        "x-devin-primary-org-id": String(read("devin_primary_org_id") || ""),
+      },
+    });
+    if (r.status === 401 || r.status === 403) throw new Error("not_signed_in");
+    if (!r.ok) throw new Error("http_" + r.status);
+    const buf = new Uint8Array(await r.arrayBuffer());
+    // Minimal protobuf reader: returns { field: [values] }, nested messages as Uint8Array.
+    const decode = (b) => {
+      const out = {}; let i = 0;
+      const varint = () => { let x = 0, m = 1, c; do { c = b[i++]; x += (c & 0x7f) * m; m *= 128; } while (c & 0x80); return x; };
+      while (i < b.length) {
+        const key = varint(), f = Math.floor(key / 8), t = key % 8; let v;
+        if (t === 0) v = varint();
+        else if (t === 2) { const l = varint(); v = b.subarray(i, i + l); i += l; }
+        else if (t === 1) { i += 8; continue; }
+        else if (t === 5) { i += 4; continue; }
+        else break;
+        (out[f] = out[f] || []).push(v);
+      }
+      return out;
+    };
+    const top = decode(buf);
+    const status = top[1] ? decode(top[1][0]) : {};
+    const info = status[1] ? decode(status[1][0]) : {};
+    const num = (f) => (status[f] ? status[f][0] : null);
+    window.__dwbar = { done: true, ok: true, data: {
+      plan: info[2] ? new TextDecoder().decode(info[2][0]) : null,
+      daily_remaining: num(14), weekly_remaining: num(15),
+      daily_reset: num(17), weekly_reset: num(18),
+    } };
+  } catch (e) {
+    window.__dwbar = { done: true, ok: false, error: String((e && e.message) || e) };
+  }
+})();
+"#;
+
+pub const WINDSURF: Service = Service {
+    agent: "windsurf",
+    label: "Windsurf",
+    host: "windsurf.com",
+    login_url: "https://windsurf.com/profile",
+    probe_url: "https://windsurf.com/robots.txt",
+    script: WINDSURF_SCRIPT,
+    flow: DEFAULT_FLOW,
+};
+
+// DeepSeek: API credit balance of the DeepSeek Platform account (what DSH runs on).
+const DEEPSEEK_SCRIPT: &str = r#"
+window.__dwbar = null;
+(async () => {
+  try {
+    const raw = localStorage.getItem("userToken");
+    if (!raw) throw new Error("not_signed_in");
+    let token = raw;
+    try {
+      const j = JSON.parse(raw);
+      token = typeof j === "string" ? j : (j.value || j.token || j.access_token || j.accessToken || j.userToken || raw);
+    } catch (_) {}
+    const r = await fetch("/api/v0/users/get_user_summary", {
+      credentials: "include",
+      headers: { authorization: "Bearer " + token, accept: "application/json", "x-client-platform": "web" },
+    });
+    if (r.status === 401 || r.status === 403) throw new Error("not_signed_in");
+    if (!r.ok) throw new Error("http_" + r.status);
+    const j = await r.json();
+    const biz = j && j.data && j.data.biz_data;
+    if (!biz) throw new Error("not_signed_in");
+    window.__dwbar = { done: true, ok: true, data: { summary: biz } };
+  } catch (e) {
+    window.__dwbar = { done: true, ok: false, error: String((e && e.message) || e) };
+  }
+})();
+"#;
+
+pub const DEEPSEEK: Service = Service {
+    agent: "deepseek",
+    label: "DeepSeek",
+    host: "platform.deepseek.com",
+    login_url: "https://platform.deepseek.com/usage",
+    probe_url: "https://platform.deepseek.com/robots.txt",
+    script: DEEPSEEK_SCRIPT,
+    flow: DEFAULT_FLOW,
 };
 
 pub fn service_for(agent: &str) -> Option<Service> {
     match agent {
         "claude" => Some(CLAUDE),
         "codex" => Some(CHATGPT),
+        "gemini" => Some(GEMINI),
+        "cursor" => Some(CURSOR),
+        "windsurf" => Some(WINDSURF),
+        "deepseek" => Some(DEEPSEEK),
         _ => None,
     }
+}
+
+/// Turn what an agent's script returned into a reading.
+pub fn parse(agent: &str, data: &Value, now: i64) -> Reading {
+    match agent {
+        "claude" => parse_claude(data),
+        "codex" => parse_chatgpt(data, now),
+        "gemini" => parse_gemini(data),
+        "cursor" => parse_cursor(data),
+        "windsurf" => parse_windsurf(data),
+        _ => parse_deepseek(data),
+    }
+}
+
+fn base(agent: &str, name: &str) -> Reading {
+    let mut r = Reading::empty(agent, name);
+    r.source = Some("account".into());
+    r.connected = true;
+    r
+}
+
+fn iso(v: &Value) -> Option<i64> {
+    v.as_str()
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|d| d.timestamp())
+}
+
+/// gemini.google.com UsagePageQuery → `getUsageInfo` (`percentageUsed` is a fraction).
+pub fn parse_gemini(data: &Value) -> Reading {
+    let mut r = base("gemini", "Gemini");
+    let pools = data["usage"]["pools"].as_array().cloned().unwrap_or_default();
+    for (kind, period, label) in [("GXU_FIVE_HOURLY", Period::FiveHour, "5 小時"), ("GXU_WEEKLY", Period::Week, "每週")] {
+        let Some(pool) = pools.iter().find(|p| p["poolType"] == kind) else { continue };
+        let Some(frac) = pool["percentageUsed"].as_f64().filter(|f| f.is_finite() && *f >= 0.0) else { continue };
+        r.windows.push(Window {
+            period,
+            label: label.into(),
+            used_percent: (frac * 100.0).min(100.0),
+            resets_at: iso(&pool["gxu"]["windowRefreshesAt"]),
+        });
+    }
+    r.plan = match data["usage"]["subscriptionTier"].as_str() {
+        Some("TIER1") => Some("Pro".into()),
+        Some("TIER2") => Some("Ultra".into()),
+        _ => None,
+    };
+    r.ok = !r.windows.is_empty();
+    if !r.ok {
+        r.notice = Some("這個 Google 帳號沒有 Gemini 用量資料".into());
+    }
+    r
+}
+
+/// cursor.com `/api/usage-summary` (+ `/api/auth/me`). Money values are in cents.
+pub fn parse_cursor(data: &Value) -> Reading {
+    let mut r = base("cursor", "Cursor");
+    let s = &data["summary"];
+    let plan = &s["individualUsage"]["plan"];
+    let pct = |v: &Value| v.as_f64().filter(|p| p.is_finite());
+    let used = plan["totalPercentUsed"].as_f64().or_else(|| {
+        match (pct(&plan["autoPercentUsed"]), pct(&plan["apiPercentUsed"])) {
+            (Some(a), Some(b)) => Some((a + b) / 2.0),
+            (a, b) => a.or(b),
+        }
+    }).or_else(|| {
+        let (u, l) = (plan["used"].as_f64()?, plan["limit"].as_f64()?);
+        (l > 0.0).then(|| u / l * 100.0)
+    }).or_else(|| {
+        let o = &s["individualUsage"]["overall"];
+        let (u, l) = (o["used"].as_f64()?, o["limit"].as_f64()?);
+        (l > 0.0).then(|| u / l * 100.0)
+    });
+    if let Some(u) = used {
+        r.windows.push(Window {
+            period: Period::Month,
+            label: "本期方案額度".into(),
+            used_percent: u.clamp(0.0, 100.0),
+            resets_at: iso(&s["billingCycleEnd"]),
+        });
+    }
+    let od = &s["individualUsage"]["onDemand"];
+    if let (Some(u), Some(l)) = (od["used"].as_f64(), od["limit"].as_f64()) {
+        if l > 0.0 {
+            r.balance = Some(format!("按量剩 ${:.2}", ((l - u) / 100.0).max(0.0)));
+        }
+    }
+    r.plan = s["membershipType"].as_str().map(str::to_owned);
+    r.account = data["email"].as_str().map(str::to_owned);
+    r.ok = !r.windows.is_empty();
+    if !r.ok {
+        r.notice = Some("Cursor 回傳了無法辨識的用量資料".into());
+    }
+    r
+}
+
+/// windsurf.com GetPlanStatus, decoded by the page script.
+pub fn parse_windsurf(data: &Value) -> Reading {
+    let mut r = base("windsurf", "Windsurf");
+    for (key, reset, period, label) in [
+        ("daily_remaining", "daily_reset", Period::Day, "每日"),
+        ("weekly_remaining", "weekly_reset", Period::Week, "每週"),
+    ] {
+        let Some(left) = data[key].as_f64() else { continue };
+        r.windows.push(Window {
+            period,
+            label: label.into(),
+            used_percent: (100.0 - left).clamp(0.0, 100.0),
+            resets_at: data[reset].as_i64().filter(|t| *t > 0),
+        });
+    }
+    r.plan = data["plan"].as_str().filter(|s| !s.is_empty()).map(str::to_owned);
+    r.ok = !r.windows.is_empty();
+    if !r.ok {
+        r.notice = Some("Windsurf 沒有回傳額度（可能是試用或團隊方案）".into());
+    }
+    r
+}
+
+/// platform.deepseek.com `get_user_summary`: API credit wallets (no time windows).
+pub fn parse_deepseek(data: &Value) -> Reading {
+    let mut r = base("deepseek", "DeepSeek");
+    let mut totals: Vec<(String, f64)> = Vec::new();
+    for key in ["normal_wallets", "bonus_wallets"] {
+        for w in data["summary"][key].as_array().into_iter().flatten() {
+            let amount = w["balance"].as_f64().or_else(|| w["balance"].as_str().and_then(|s| s.parse().ok()));
+            let (Some(amount), Some(cur)) = (amount, w["currency"].as_str()) else { continue };
+            match totals.iter_mut().find(|(c, _)| c == cur) {
+                Some((_, t)) => *t += amount,
+                None => totals.push((cur.to_string(), amount)),
+            }
+        }
+    }
+    if totals.is_empty() {
+        r.notice = Some("DeepSeek 沒有回傳餘額".into());
+        return r;
+    }
+    r.balance = Some(
+        totals
+            .iter()
+            .map(|(c, t)| format!("{}{:.2}", if c == "CNY" { "¥" } else { "$" }, t))
+            .collect::<Vec<_>>()
+            .join(" / "),
+    );
+    r.plan = Some("API".into());
+    r.ok = true;
+    r
 }
 
 /// Whether a page the sign-in window landed on means "signed in" (left the login flow).
 pub fn looks_signed_in(service: &Service, host: &str, path: &str) -> bool {
     let host_ok = host == service.host || host.ends_with(&format!(".{}", service.host));
-    let in_flow = ["/login", "/auth", "/logout", "/magic-link", "/sso", "/verify", "/api/"]
-        .iter()
-        .any(|p| path.starts_with(p));
+    let in_flow = service.flow.iter().any(|p| path.starts_with(p));
     host_ok && !in_flow
 }
 
@@ -176,6 +506,8 @@ pub fn parse_chatgpt(data: &Value, now: i64) -> Reading {
             Period::Other => minutes.map(|m| format!("{} 小時", m / 60)).unwrap_or_else(|| label.into()),
             Period::FiveHour => "5 小時".into(),
             Period::Week => "每週".into(),
+            Period::Day => "每日".into(),
+            Period::Month => "每月".into(),
         };
         let resets_at = w["reset_at"]
             .as_i64()
@@ -246,6 +578,52 @@ mod tests {
         assert_eq!(r.window(Period::Week).unwrap().used_percent, 70.0);
         assert_eq!(r.balance.as_deref(), Some("5.00"));
         assert_eq!(r.account.as_deref(), Some("a@b.c"));
+    }
+
+    #[test]
+    fn gemini_usage() {
+        let r = parse_gemini(&json!({"usage": {"subscriptionTier": "TIER1", "pools": [
+            {"poolType": "GXU_FIVE_HOURLY", "percentageUsed": 0.25, "gxu": {"windowRefreshesAt": "2026-10-29T10:00:00Z"}},
+            {"poolType": "GXU_WEEKLY", "percentageUsed": 0.5}
+        ]}}));
+        assert!(r.ok);
+        assert_eq!(r.window(Period::FiveHour).unwrap().used_percent, 25.0);
+        assert_eq!(r.window(Period::Week).unwrap().used_percent, 50.0);
+        assert_eq!(r.plan.as_deref(), Some("Pro"));
+    }
+
+    #[test]
+    fn cursor_usage() {
+        let r = parse_cursor(&json!({"summary": {
+            "billingCycleEnd": "2026-11-15T00:00:00.000Z", "membershipType": "pro",
+            "individualUsage": {"plan": {"used": 1000, "limit": 2000, "totalPercentUsed": 42.5},
+                                "onDemand": {"used": 250, "limit": 1000}}
+        }, "email": "x@y.z"}));
+        assert!(r.ok);
+        assert_eq!(r.window(Period::Month).unwrap().used_percent, 42.5);
+        assert_eq!(r.balance.as_deref(), Some("按量剩 $7.50"));
+        let r = parse_cursor(&json!({"summary": {"individualUsage": {"plan": {"used": 500, "limit": 2000}}}}));
+        assert_eq!(r.window(Period::Month).unwrap().used_percent, 25.0);
+    }
+
+    #[test]
+    fn windsurf_usage() {
+        let r = parse_windsurf(&json!({"plan": "Pro", "daily_remaining": 80, "weekly_remaining": 35, "daily_reset": 1_793_300_000, "weekly_reset": 0}));
+        assert!(r.ok);
+        assert_eq!(r.window(Period::Day).unwrap().used_percent, 20.0);
+        assert_eq!(r.window(Period::Week).unwrap().used_percent, 65.0);
+        assert_eq!(r.window(Period::Week).unwrap().resets_at, None);
+    }
+
+    #[test]
+    fn deepseek_balance() {
+        let r = parse_deepseek(&json!({"summary": {
+            "normal_wallets": [{"balance": "10.50", "currency": "CNY"}],
+            "bonus_wallets": [{"balance": 2.0, "currency": "CNY"}]
+        }}));
+        assert!(r.ok);
+        assert_eq!(r.balance.as_deref(), Some("¥12.50"));
+        assert!(r.windows.is_empty());
     }
 
     #[test]

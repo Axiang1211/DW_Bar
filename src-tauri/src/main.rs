@@ -223,10 +223,10 @@ fn save_config(app: AppHandle, mut config: Config) -> Result<Snapshot, String> {
         let state = app.state::<AppState>();
         let mut s = state.inner.lock().unwrap();
         // Linking is owned by the sign-in flow; a settings page with an older copy must not undo it.
-        config.claude.connected = s.config.claude.connected;
-        config.codex.connected = s.config.codex.connected;
-        let changed = s.config.claude != config.claude
-            || s.config.codex != config.codex
+        for agent in dwbar_core::config::AGENTS {
+            config.agent_mut(agent).connected = s.config.agent(agent).connected;
+        }
+        let changed = dwbar_core::config::AGENTS.iter().any(|a| s.config.agent(a) != config.agent(a))
             || s.config.refresh_minutes != config.refresh_minutes;
         let autostart = (s.config.autostart != config.autostart).then_some(config.autostart);
         s.config = config;

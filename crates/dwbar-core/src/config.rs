@@ -69,7 +69,14 @@ pub struct Config {
     pub autostart: bool,
     pub claude: AgentConfig,
     pub codex: AgentConfig,
+    pub gemini: AgentConfig,
+    pub cursor: AgentConfig,
+    pub windsurf: AgentConfig,
+    pub deepseek: AgentConfig,
 }
+
+/// Every AI DW Bar knows, in display order.
+pub const AGENTS: [&str; 6] = ["claude", "codex", "gemini", "cursor", "windsurf", "deepseek"];
 
 impl Default for Config {
     fn default() -> Self {
@@ -84,6 +91,10 @@ impl Default for Config {
             autostart: false,
             claude: AgentConfig::default(),
             codex: AgentConfig::default(),
+            gemini: AgentConfig::default(),
+            cursor: AgentConfig::default(),
+            windsurf: AgentConfig::default(),
+            deepseek: AgentConfig::default(),
         }
     }
 }
@@ -111,6 +122,28 @@ impl Config {
         let tmp = path.with_extension("json.tmp");
         fs::write(&tmp, serde_json::to_vec_pretty(self).unwrap_or_default())?;
         fs::rename(tmp, path)
+    }
+
+    pub fn agent(&self, id: &str) -> &AgentConfig {
+        match id {
+            "claude" => &self.claude,
+            "codex" => &self.codex,
+            "gemini" => &self.gemini,
+            "cursor" => &self.cursor,
+            "windsurf" => &self.windsurf,
+            _ => &self.deepseek,
+        }
+    }
+
+    pub fn agent_mut(&mut self, id: &str) -> &mut AgentConfig {
+        match id {
+            "claude" => &mut self.claude,
+            "codex" => &mut self.codex,
+            "gemini" => &mut self.gemini,
+            "cursor" => &mut self.cursor,
+            "windsurf" => &mut self.windsurf,
+            _ => &mut self.deepseek,
+        }
     }
 
     pub fn clamp(&mut self) {
