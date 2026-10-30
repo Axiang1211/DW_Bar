@@ -2,11 +2,11 @@
 
 DW Bar 的官方網站（靜態頁面 + Cloudflare Pages Functions）。
 
-- `index.html` 介紹、使用方式、安裝須知、常見問題、下載
+- `index.html` 介紹、使用方式、安裝須知、常見問題、下載（Windows 預設提供 [Microsoft Store](https://apps.microsoft.com/detail/9PK1N7M4P647) 版本，下方提供 `.exe`、`.msi`、`.dmg` 等其他版本）
 - `privacy.html`、`terms.html` 隱私權政策、服務條款
-- `worker.js` + `wrangler.jsonc`：Cloudflare Worker。`/download/<win-x64|win-arm64|win-msi|mac>` 直接串流最新版安裝檔（網址不離開本站），`/api/latest` 提供版本與檔案大小；其他路徑是靜態檔
+- `worker.js` + `wrangler.jsonc`：Cloudflare Worker。`/download` 與 `/download/store` 導向 Microsoft Store，`/download/<win-x64|win-arm64|win-msi|mac>` 直接串流最新版安裝檔（網址不離開本站），`/api/latest` 提供版本與檔案大小；其他路徑是靜態檔
 - `functions/`：實際的下載與版本程式（Worker 引用；若改用 Pages 專案也能直接當 Pages Functions）
-- `_redirects`：備援，萬一程式沒在跑，直接導向安裝檔本身
+- `_redirects`：備援，萬一程式沒在跑，直接導向 Store 或安裝檔本身
 - `.assetsignore`：不對外公開的檔案（程式碼、設定）
 
 ## 部署（Cloudflare Workers，連接 Git）

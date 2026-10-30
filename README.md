@@ -4,24 +4,25 @@
 
 外圈上半弧是 **5 小時額度**，內圈是 **每週額度**，綠／黃／紅代表剩多少。滑鼠移到圖示上會跳出用量小卡（5 小時、每週、餘額），點一下開設定。
 
-> 目前版本 **v0.9**：新增 **背景材質**（毛玻璃、液態玻璃、純色、漸層、液態金屬），修正開機自動啟動；v0.8：新增 **Mac 版（DMG，Apple 晶片＋Intel）** 與 **Windows ARM64 版**，網站自動推薦適合的版本；新標誌、官方網站 [dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)、半透明視窗開關；各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
+> 目前版本 **v1.0**：已上架 **[Microsoft Store](https://apps.microsoft.com/detail/9PK1N7M4P647)**，支援繁體中文、簡體中文、英文；新增 **背景材質**（毛玻璃、液態玻璃、純色、漸層、液態金屬），修正開機自動啟動；提供 **Mac 版（DMG，Apple 晶片＋Intel）** 與 **Windows ARM64 版**；官方網站 [dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)、半透明視窗開關；各家官方圖示（4 種風格）、滑鼠移上去的用量小卡、點一下開啟用量面板、九宮格位置；支援 Claude、Codex（ChatGPT）、Gemini、Antigravity、Cursor、Windsurf、DeepSeek（DSH）。自動偵測已安裝的 App，在 DW Bar 內連結帳號即可顯示用量。
 
 ## 下載安裝（不用裝任何開發工具）
 
-到 **[dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)** 按「下載」（會自動判斷你的電腦），或在本專案的 **Releases** 下載：
+到 **[dwbar.app.dreamsworld.top](https://dwbar.app.dreamsworld.top)** 按「下載」（Windows 預設從 **[Microsoft Store](https://apps.microsoft.com/detail/9PK1N7M4P647)** 安裝，下方也可下載獨立安裝檔），或在本專案的 **Releases** 下載：
 
-| 檔案 | 適用 |
+| 來源 / 檔案 | 適用 |
 | --- | --- |
-| `DW-Bar-Setup.exe` / `DW-Bar.msi` | Windows 10／11（一般 x64 電腦） |
-| `DW-Bar-Setup-arm64.exe` | Windows on ARM（Snapdragon 等） |
+| **[Microsoft Store](https://apps.microsoft.com/detail/9PK1N7M4P647)** | Windows 10／11（x64 與 ARM64，推薦、自動更新） |
+| `DW-Bar-Setup.exe` / `DW-Bar.msi` | Windows 10／11（一般 x64 電腦獨立安裝檔） |
+| `DW-Bar-Setup-arm64.exe` | Windows on ARM（Snapdragon 等獨立安裝檔） |
 | `DW-Bar.dmg` | macOS 11 以上（Apple 晶片與 Intel） |
 
-1. Windows 執行安裝檔；Mac 打開 DMG，把 DW Bar 拖進「應用程式」
+1. Windows 推薦直接從 Microsoft Store 安裝（或執行 `.exe` 安裝檔）；Mac 打開 DMG，把 DW Bar 拖進「應用程式」
 2. 打開設定 →「AI 帳號」→ 按想要的 AI 的「連結」按鈕，在跳出的官方登入頁登入
 
 不需要安裝任何命令列工具。
 
-第一次執行，Windows SmartScreen 可能會提示「無法辨識的應用程式」，因為安裝檔還沒有數位簽章：按「其他資訊 → 仍要執行」。
+若使用獨立 `.exe`／`.msi` 安裝檔，第一次執行時 Windows SmartScreen 可能會提示「無法辨識的應用程式」（因為獨立安裝檔尚未購買數位簽章；從 Microsoft Store 安裝則不會出現此提示）：按「其他資訊 → 仍要執行」。
 
 Mac 版還沒有 Apple 開發者簽章：第一次打開被擋時，到「系統設定 → 隱私權與安全性」按「強制打開」；若顯示「已損毀」，在終端機執行 `xattr -cr "/Applications/DW Bar.app"`。Mac 沒有工作列，膠囊會懸浮在畫面上，選單列顯示最低的剩餘百分比；半透明視窗與 Antigravity 目前只支援 Windows。
 

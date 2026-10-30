@@ -1,7 +1,8 @@
-// GET /download/<os> (or /download?os=<os>), os = win-x64 | win-arm64 | win-msi | mac
-// → the newest installer for that system, streamed
-// from the latest GitHub release so the browser downloads it straight away on this site
-// (no GitHub page in between). Without ?os it serves the Windows x64 installer.
+// GET /download/<os> (or /download?os=<os>), os = store | win-x64 | win-arm64 | win-msi | mac
+// → without ?os (or os=store), redirects to the Microsoft Store listing.
+// → for win-x64 | win-arm64 | win-msi | mac, streams the newest installer from the latest
+// GitHub release so the browser downloads it straight away on this site (no GitHub page in between).
+const STORE_URL = "https://apps.microsoft.com/detail/9PK1N7M4P647";
 const BASE = "https://github.com/Axiang1211/DW_Bar/releases/latest/download/";
 const ASSETS = {
   "win-x64": "DW-Bar-Setup.exe",
@@ -15,7 +16,10 @@ export function onRequestGet({ request }) {
 }
 
 export async function serve(os) {
-  const name = ASSETS[os] || ASSETS["win-x64"];
+  if (!os || os === "store" || !ASSETS[os]) {
+    return Response.redirect(STORE_URL, 302);
+  }
+  const name = ASSETS[os];
   const upstream = await fetch(BASE + name, {
     redirect: "follow",
     headers: { "User-Agent": "dwbar-site" },
