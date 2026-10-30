@@ -242,9 +242,10 @@
 
     function detectSync() {
       const ua = navigator.userAgent;
-      const touchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1; // iPad asking for desktop pages
+      const plat = navigator.userAgentData?.platform || navigator.platform || "";
+      const touchMac = (/Macintosh/i.test(ua) || /mac/i.test(plat)) && navigator.maxTouchPoints > 1; // iPad asking for desktop pages
       if (/iPhone|iPad|iPod|Android/i.test(ua) || touchMac || navigator.userAgentData?.mobile) mobile = true;
-      else if (/Macintosh|Mac OS X/.test(ua)) pick = "mac";
+      else if (/Macintosh|Mac OS X/i.test(ua) || /mac/i.test(plat)) pick = "mac";
     }
     const mb = (b) => (b ? ` · ${(b / 1048576).toFixed(1)} MB` : "");
     function render() {

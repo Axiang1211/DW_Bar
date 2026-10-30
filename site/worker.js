@@ -7,9 +7,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (path === "/download") return serve(url.searchParams.get("os"));
+    if (path === "/download") return serve(url.searchParams.get("os"), request);
     const m = path.match(/^\/download\/([\w-]+)$/);
-    if (m) return serve(m[1]);
+    if (m) return serve(m[1], request);
     if (path === "/api/latest") return latest();
     return env.ASSETS.fetch(request);
   },

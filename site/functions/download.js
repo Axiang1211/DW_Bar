@@ -1,6 +1,7 @@
 // GET /download/<os> (or /download?os=<os>), os = store | win-x64 | win-arm64 | win-msi | mac
-// → without ?os (or os=store), redirects to the Microsoft Store listing.
-// → for win-x64 | win-arm64 | win-msi | mac, streams the newest installer from the latest
+// → without ?os: serves macOS DMG on Mac User-Agent, otherwise redirects to Microsoft Store.
+// → for os=store: redirects to the Microsoft Store listing.
+// → for win-x64 | win-arm64 | win-msi | mac: streams the newest installer from the latest
 // GitHub release so the browser downloads it straight away on this site (no GitHub page in between).
 const STORE_URL = "https://apps.microsoft.com/detail/9PK1N7M4P647";
 const BASE = "https://github.com/Axiang1211/DW_Bar/releases/latest/download/";
@@ -12,10 +13,16 @@ const ASSETS = {
 };
 
 export function onRequestGet({ request }) {
-  return serve(new URL(request.url).searchParams.get("os"));
+  return serve(new URL(request.url).searchParams.get("os"), request);
 }
 
-export async function serve(os) {
+export async function serve(os, request) {
+  if (!os && request) {
+    const ua = request.headers.get("User-Agent") || "";
+    if (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad|iPod/i.test(ua)) {
+      os = "mac";
+    }
+  }
   if (!os || os === "store" || !ASSETS[os]) {
     return Response.redirect(STORE_URL, 302);
   }
