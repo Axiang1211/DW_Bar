@@ -233,6 +233,8 @@ const D = {
   "{time}（還有 {left}）": ["{time} · {left}", "{time}（还有 {left}）"],
   "{time} 重置 · 還有 {left}": ["resets {time} · in {left}", "{time} 重置 · 还有 {left}"],
   "{left}後重置": ["resets in {left}", "{left}后重置"],
+  "每週額度已用完": ["Weekly limit used up", "每周额度已用完"],
+  "每週額度已用完，要等每週重置後才能再用": ["Weekly limit used up: usable again after the weekly reset", "每周额度已用完，要等每周重置后才能再用"],
   "{time} 重置": ["↻ {time}", "{time} 重置"],
   "（{time} 重置）": [" (resets {time})", "（{time} 重置）"],
   "下次重置 {time}": ["Next reset {time}", "下次重置 {time}"],

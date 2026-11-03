@@ -1,4 +1,4 @@
-import { $, invoke, listen, left, level, applyTheme, resetText, untilText, t, tb, setLang } from "./common.js";
+import { $, invoke, listen, left, level, applyTheme, resetText, untilText, t, tb, setLang, gauge, windowLevel } from "./common.js";
 import { applyMaterial } from "./material.js";
 
 let state = null;
@@ -23,7 +23,8 @@ function render() {
         const r = left(w);
         const long = w.period === "week" || w.period === "month";
         const when = w.resets_at ? t("{left}後重置", { left: untilText(w.resets_at) }) : "";
-        const color = long ? "var(--weekly)" : `var(--${level(r)})`;
+        const lv = windowLevel(q, w);
+        const color = lv === "wk" ? "var(--weekly)" : lv === "off" ? "var(--fg-3)" : `var(--${lv})`;
         return `<div class="tip-row"><span>${esc(tb(w.label))}</span><em>${t("剩 {n}%", { n: Math.round(r) })}<small>${when}</small></em>
           <span class="tip-bar"><i style="width:${r}%;background:${color}"></i></span></div>`;
       })
@@ -33,10 +34,11 @@ function render() {
   }
   rows += `<div class="tip-row"><span>${t("餘額")}</span><em>${esc(tb(q.balance) || "—")}</em></div>`;
   const next = q.windows?.filter((w) => w.resets_at).sort((a, b) => a.resets_at - b.resets_at)[0];
+  const blocked = q.ok && gauge(q).blocked ? `<div class="tip-blocked">${esc(t("每週額度已用完，要等每週重置後才能再用"))}</div>` : "";
   const foot = [next ? t("下次重置 {time}", { time: resetText(next.resets_at) }) : "", corner ? t("點擊展開全部 AI") : t("點擊開啟面板")]
     .filter(Boolean)
     .join(" · ");
-  $("#card").innerHTML = `${head}<div class="tip-rows">${rows}</div><div class="tip-foot">${foot}</div>`;
+  $("#card").innerHTML = `${head}${blocked}<div class="tip-rows">${rows}</div><div class="tip-foot">${foot}</div>`;
   requestAnimationFrame(() => {
     const wrap = $("#wrap");
     invoke("tip_resize", { width: Math.ceil(wrap.offsetWidth), height: Math.ceil(wrap.offsetHeight) });

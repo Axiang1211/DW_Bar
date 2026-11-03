@@ -1,6 +1,6 @@
 import {
   $, $$, invoke, listen, ringSVG, left, win, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS,
-  t, tb, setLang, localizePage, locale,
+  t, tb, setLang, localizePage, locale, windowLevel,
 } from "./common.js";
 import { LANGS } from "./i18n.js";
 import { KINDS, GRADIENTS, METALS, applyMaterial, osBlurs, prefersDark } from "./material.js";
@@ -279,12 +279,13 @@ function syncPosition() {
 }
 
 // ───────── 用量 ─────────
-function bar(w, weekly) {
+function bar(q, w) {
   const r = left(w);
+  const lv = windowLevel(q, w);
   const reset = w.resets_at ? t("{time} 重置 · 還有 {left}", { time: resetText(w.resets_at), left: untilText(w.resets_at) }) : "";
   return `<div class="bar">
     <div class="bar-top"><span>${escapeHtml(tb(w.label))}</span><b>${t("剩 {n}%", { n: Math.round(r) })}</b></div>
-    <div class="bar-track"><div class="bar-fill ${weekly ? "wk" : "lv-" + level(r)}" style="width:${r}%"></div></div>
+    <div class="bar-track"><div class="bar-fill ${lv === "wk" ? "wk" : "lv-" + lv}" style="width:${r}%"></div></div>
     <small>${reset}</small>
   </div>`;
 }
@@ -317,7 +318,7 @@ function renderUsage() {
     .map((q) => {
       let body;
       if (q.ok) body = q.windows.length
-        ? q.windows.map((w) => bar(w, w.period === "week" || w.period === "month")).join("")
+        ? q.windows.map((w) => bar(q, w)).join("")
         : `<div class="bigbal"><small>${t("餘額")}</small><b>${escapeHtml(tb(q.balance) || "—")}</b></div>`;
       else {
         const cta = AGENTS[q.agent]?.local

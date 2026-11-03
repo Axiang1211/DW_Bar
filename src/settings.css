@@ -187,6 +187,7 @@ select, .path {
 .bar-fill.lv-warn { background: var(--warn); }
 .bar-fill.lv-crit { background: var(--crit); }
 .bar-fill.wk { background: var(--weekly); }
+.bar-fill.lv-off { background: var(--fg-3); opacity: 0.5; }
 .bar small { color: var(--fg-3); font-size: 12px; }
 .meta { display: flex; gap: 16px; border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; font-size: 12.5px; color: var(--fg-2); }
 .meta b { color: var(--fg); font-weight: 600; }

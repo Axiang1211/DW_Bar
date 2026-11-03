@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme, applyIconStyle, t, setLang, localizePage } from "./common.js";
+import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, tooltip, applyTheme, applyIconStyle, t, setLang, localizePage, gauge } from "./common.js";
 import { applyMaterial } from "./material.js";
 
 const cap = $("#cap");
@@ -19,9 +19,9 @@ function armCollapse() {
 }
 cap.addEventListener("pointermove", () => expanded && armCollapse());
 
-/** The AI that most needs attention: lowest remaining short-window quota. */
+/** The AI that most needs attention: least usable quota (0 when its weekly limit is spent). */
 function mostUrgent(list) {
-  const score = (q) => (q.ok ? left(shortWin(q)) ?? left(longWin(q)) ?? 101 : 102);
+  const score = (q) => (q.ok ? gauge(q).effective ?? 101 : 102);
   return [...list].sort((a, b) => score(a) - score(b))[0];
 }
 
@@ -68,9 +68,10 @@ function render(state) {
         // Balance-only AIs (DeepSeek API) have no rings to fill; show the balance itself.
         if (!vertical) el.append(text("pct", q.balance));
       } else if (state.config.show_percent && q.ok && !vertical) {
-        const r = left(shortWin(q)) ?? left(longWin(q));
+        const g = gauge(q);
+        const r = g.main;
         if (r != null) {
-          const p = text(`pct lv-${level(r)}`, "");
+          const p = text(`pct lv-${g.level}`, "");
           p.innerHTML = `${Math.round(r)}<small>%</small>`;
           el.append(p);
         }

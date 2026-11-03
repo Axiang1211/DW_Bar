@@ -1,4 +1,4 @@
-import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS, t, tb, setLang, localizePage, locale } from "./common.js";
+import { $, invoke, listen, ringSVG, left, shortWin, longWin, level, applyTheme, applyIconStyle, resetText, untilText, AGENTS, t, tb, setLang, localizePage, locale, gauge } from "./common.js";
 import { applyMaterial } from "./material.js";
 
 let state = null;
@@ -17,7 +17,8 @@ function card(q) {
   const l = longWin(q);
   const main = s || l;
   const r = left(main);
-  const glow = main ? `radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--${level(r)}) 18%, transparent), transparent 60%)` : "none";
+  const g = gauge(q);
+  const glow = main && !g.blocked ? `radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--${level(r)}) 18%, transparent), transparent 60%)` : "none";
   let body;
   if (q.ok && main) {
     const rows = [];
@@ -27,7 +28,9 @@ function card(q) {
     for (const w of q.windows.filter((w) => w !== s && w !== l)) rows.push(`<div><dt><span>${esc(tb(w.label))}</span></dt><dd>${when(w)}${t("剩 {n}%", { n: Math.round(left(w)) })}</dd></div>`);
     if (main.resets_at) rows.push(`<div><dt>${t("重置")}</dt><dd>${t("{time}（還有 {left}）", { time: resetText(main.resets_at), left: untilText(main.resets_at) })}</dd></div>`);
     rows.push(`<div><dt>${t("餘額")}</dt><dd>${esc(tb(q.balance) || "—")}</dd></div>`);
-    body = `<div class="mc-big"><b>${Math.round(r)}%</b><small>${esc(t("{label} 剩餘", { label: tb(main.label) }))}</small></div><dl class="mc-rows">${rows.join("")}</dl>`;
+    // Weekly spent: the 5-hour number can't be used — grey it and say why.
+    const blocked = g.blocked ? `<div class="mc-blocked">${esc(t("每週額度已用完，要等每週重置後才能再用"))}</div>` : "";
+    body = `<div class="mc-big${g.blocked ? " off" : ""}"><b>${Math.round(r)}%</b><small>${esc(t("{label} 剩餘", { label: tb(main.label) }))}</small></div>${blocked}<dl class="mc-rows">${rows.join("")}</dl>`;
   } else if (q.ok) {
     body = `<div class="mc-big"><b>${esc(tb(q.balance) || "—")}</b><small>${t("餘額")}</small></div>`;
   } else {

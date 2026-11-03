@@ -172,12 +172,23 @@ pub fn broadcast(app: &AppHandle) {
 #[cfg(target_os = "macos")]
 fn menu_bar_text(app: &AppHandle, snap: &Snapshot) {
     use dwbar_core::quota::Period;
+    // Usable share per AI: the short window, or 0 when the weekly / monthly limit is spent;
+    // weekly-only AIs count their weekly share.
     let lowest = snap
         .quotas
         .iter()
         .filter(|q| q.ok)
-        .filter_map(|q| q.window(Period::FiveHour).or_else(|| q.window(Period::Day)).or_else(|| q.window(Period::Week)))
-        .map(|w| 100.0 - w.used_percent)
+        .filter_map(|q| {
+            let short = q.window(Period::FiveHour).or_else(|| q.window(Period::Day));
+            let long = q.window(Period::Week).or_else(|| q.window(Period::Month));
+            let left = |w: &dwbar_core::quota::Window| 100.0 - w.used_percent;
+            match (short, long) {
+                (Some(_), Some(l)) if left(l) < 0.5 => Some(0.0),
+                (Some(s), _) => Some(left(s)),
+                (None, Some(l)) => Some(left(l)),
+                _ => None,
+            }
+        })
         .min_by(|a, b| a.total_cmp(b));
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_title(lowest.map(|v| format!("{:.0}%", v.clamp(0.0, 100.0))));

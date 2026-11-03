@@ -130,17 +130,54 @@ export function ringSVG(agent, reading) {
 }
 
 function ringOnly(agent, reading) {
-  const h5 = left(shortWin(reading));
-  const wk = left(longWin(reading));
+  const g = gauge(reading);
   const off = (v) => (v == null ? 100 : 100 - v);
   const mono = AGENTS[agent]?.mono || agent.slice(0, 1).toUpperCase();
+  const label = `<text class="mono${mono.length > 1 ? " mono-2" : ""}" x="50" y="50" dominant-baseline="central" text-anchor="middle">${mono}</text>`;
+  if (g.mode === "laps") {
+    // One long window as two laps: the outer circle is the first half, the inner the second.
+    const outer = Math.max(0, Math.min(100, (g.main - 50) * 2));
+    const inner = Math.max(0, Math.min(100, g.main * 2));
+    return `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="trk trk-5" cx="50" cy="50" r="43.5"/>
+    <circle class="arc arc-5 lap lv-${g.level}" cx="50" cy="50" r="43.5" pathLength="100" transform="rotate(-90 50 50)" style="stroke-dashoffset:${off(outer)}"/>
+    <circle class="trk trk-w" cx="50" cy="50" r="33"/>
+    <circle class="arc lap lap-i lv-${g.level}" cx="50" cy="50" r="33" pathLength="100" transform="rotate(-90 50 50)" style="stroke-dashoffset:${off(inner)}"/>
+    ${label}</svg>`;
+  }
   return `<svg viewBox="0 0 100 100" aria-hidden="true">
     <path class="trk trk-5" d="${HALF}"/>
-    <path class="arc arc-5 lv-${level(h5)}" d="${HALF}" pathLength="100" style="stroke-dashoffset:${off(h5)}"/>
+    <path class="arc arc-5 lv-${g.level}" d="${HALF}" pathLength="100" style="stroke-dashoffset:${off(g.h5)}"/>
     <circle class="trk trk-w" cx="50" cy="50" r="33"/>
-    <circle class="arc arc-w" cx="50" cy="50" r="33" pathLength="100" transform="rotate(-90 50 50)" style="stroke-dashoffset:${off(wk)}"/>
-    <text class="mono${mono.length > 1 ? " mono-2" : ""}" x="50" y="50" dominant-baseline="central" text-anchor="middle">${mono}</text>
-  </svg>`;
+    <circle class="arc arc-w" cx="50" cy="50" r="33" pathLength="100" transform="rotate(-90 50 50)" style="stroke-dashoffset:${off(g.wk)}"/>
+    ${label}</svg>`;
+}
+
+/**
+ * How a reading is drawn and judged.
+ * - "split": the short window (5 h / day) as the outer half arc, the long one (week / month) inside.
+ *   When the long window is spent the short one can't be used, so it is `blocked` (drawn grey).
+ * - "laps": only a long window (some AIs dropped the 5-hour limit): two full circles in the
+ *   level colour — green while more than half is left, then the usual yellow / red.
+ * `main` is the number to show; `effective` is what is really usable (0 when blocked).
+ */
+export function gauge(reading) {
+  const s = shortWin(reading);
+  const l = longWin(reading);
+  const h5 = left(s);
+  const wk = left(l);
+  if (!s && l) return { mode: "laps", main: wk, wk, h5: null, blocked: false, level: level(wk), effective: wk };
+  const blocked = s != null && wk != null && wk < 0.5;
+  return { mode: "split", main: h5 ?? wk, h5, wk, blocked, level: blocked ? "off" : level(h5), effective: blocked ? 0 : h5 ?? wk };
+}
+
+/** Colour of one window's bar: "off" (blocked), "wk" (weekly purple) or the level. */
+export function windowLevel(reading, w) {
+  const g = gauge(reading);
+  const long = w.period === "week" || w.period === "month";
+  if (!long && g.blocked) return "off";
+  if (long && g.mode === "split") return "wk";
+  return level(left(w));
 }
 
 /** Apply the configured theme: "auto" follows Windows (prefers-color-scheme). */
@@ -154,6 +191,7 @@ export function tooltip(reading) {
   const name = reading.name;
   if (!reading.ok) return `${name}\n${tb(reading.notice) || t("沒有資料")}`;
   const lines = [name];
+  if (gauge(reading).blocked) lines.push(t("每週額度已用完，要等每週重置後才能再用"));
   for (const w of reading.windows) {
     const r = left(w);
     const reset = w.resets_at ? t("（{time} 重置）", { time: resetText(w.resets_at) }) : "";

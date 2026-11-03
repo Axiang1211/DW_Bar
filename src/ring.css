@@ -31,3 +31,11 @@
 .ring .logo.own { inset: 21%; background: #fff; box-shadow: none !important; backdrop-filter: none !important; }
 .ring .logo.own::after { display: none; }
 .ring .logo.own img { filter: none !important; image-rendering: auto !important; opacity: 1 !important; }
+
+/* Weekly limit spent: the 5-hour arc can't be used, so it goes grey. */
+.ring .arc.lv-off { stroke: var(--fg-3, #8a8698); opacity: 0.55; }
+/* Weekly-only AIs: two laps in the level colour (outer first half, inner second half). */
+.ring .arc.lap-i { stroke-width: 7; }
+.ring .arc.lap.lv-ok { stroke: var(--ok); }
+.ring .arc.lap.lv-warn { stroke: var(--warn); }
+.ring .arc.lap.lv-crit { stroke: var(--crit); }

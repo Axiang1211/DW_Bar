@@ -37,6 +37,7 @@ html, body { margin: 0; background: transparent; overflow: hidden; font: 13px/1.
 .tip-head b { font-size: 13px; font-weight: 650; }
 .tip-head small { font-size: 11px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
 .tip-rows { display: grid; gap: 7px; }
+.tip-blocked { font-size: 11.5px; color: var(--warn); margin: -2px 0 8px; }
 .tip-row { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 12px; align-items: baseline; }
 .tip-row span { color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tip-row em { font-style: normal; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
