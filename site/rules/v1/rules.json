@@ -1,0 +1,7 @@
+{
+  "about": "DW Bar online reading rules. Edit, raise version, push: GitHub signs and publishes them to dwbar.app.dreamsworld.top/rules/v1/. See rules/README.md.",
+  "schema": 1,
+  "version": 1,
+  "min_app": "1.1.0",
+  "services": {}
+}
