@@ -172,6 +172,8 @@ pub struct Config {
     /// Minutes between quota refreshes (clamped 2..=60).
     pub refresh_minutes: u32,
     pub autostart: bool,
+    /// Download and install new versions automatically (installer / DMG versions).
+    pub auto_update: bool,
     pub claude: AgentConfig,
     pub codex: AgentConfig,
     pub gemini: AgentConfig,
@@ -260,6 +262,7 @@ impl Default for Config {
             hide_fullscreen: true,
             refresh_minutes: 5,
             autostart: false,
+            auto_update: true,
             claude: AgentConfig::default(),
             codex: AgentConfig::default(),
             gemini: AgentConfig::default(),

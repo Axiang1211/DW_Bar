@@ -145,3 +145,17 @@ listen("state", (e) => render(e.payload));
 invoke("get_state").then(render);
 // Reset times in tooltips go stale; re-render once a minute.
 setInterval(() => invoke("get_state").then(render), 60_000);
+
+// Online reading rules (signed; the app checks the signature): at start and every 6 hours.
+const RULES = "https://dwbar.app.dreamsworld.top/rules/v1/";
+async function updateRules() {
+  try {
+    const get = (f) => fetch(RULES + f, { cache: "no-store" }).then((r) => (r.ok ? r.text() : Promise.reject(r.status)));
+    const [text, sig] = await Promise.all([get("rules.json"), get("rules.json.sig")]);
+    await invoke("apply_rules", { text, sig });
+  } catch {
+    // Offline, not published yet, or not signed: the built-in rules stay in use.
+  }
+}
+setTimeout(updateRules, 3000);
+setInterval(updateRules, 6 * 3600 * 1000);

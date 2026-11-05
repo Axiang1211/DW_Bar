@@ -37,6 +37,7 @@ pub struct Inner {
     pub autostart_blocked: bool,
     /// Language the pages resolved ("zh-TW" / "zh-CN" / "en"), for native text.
     pub ui_lang: String,
+    pub update: crate::updates::Status,
 }
 
 pub struct AppState {
@@ -51,6 +52,7 @@ impl AppState {
         Self {
             inner: Mutex::new(Inner {
                 ui_lang,
+                update: Default::default(),
                 config,
                 quotas: Vec::new(),
                 refreshing: false,
@@ -83,6 +85,11 @@ pub struct Snapshot {
     pub autostart_blocked: bool,
     /// Windows 11 rounds the blurred popups (8 px); Windows 10 keeps them square.
     pub round_corners: bool,
+    /// App updates: this build can update itself, and where that stands.
+    pub updater: bool,
+    pub update: crate::updates::Status,
+    /// Online reading rules in use (version), if any.
+    pub rules_version: Option<u32>,
 }
 
 impl Inner {
@@ -99,6 +106,9 @@ impl Inner {
             config_path: Config::path().display().to_string(),
             autostart_blocked: self.autostart_blocked && self.config.autostart,
             round_corners: round_corners(),
+            updater: crate::updates::supported(),
+            update: self.update.clone(),
+            rules_version: dwbar_core::quota::rules::version(),
         }
     }
 }

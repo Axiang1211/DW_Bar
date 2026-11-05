@@ -61,7 +61,12 @@ function render() {
   $("#cards").innerHTML = ordered.length
     ? ordered.map(card).join("")
     : `<div class="empty">${t("還沒有連結任何 AI。")}<br><button class="link" data-goto="agents">${t("連結帳號")}</button></div>`;
-  $("#foot").textContent = t("每 {n} 分鐘自動更新", { n: state.config.refresh_minutes });
+  const u = state.update;
+  if (u?.state === "ready") {
+    $("#foot").innerHTML = `<button class="link" id="doUpdate">${esc(t("新版本 {v} 已下載，點此更新", { v: `v${u.version}` }))}</button>`;
+  } else {
+    $("#foot").textContent = t("每 {n} 分鐘自動更新", { n: state.config.refresh_minutes });
+  }
   if (!open) return;
   requestAnimationFrame(() => {
     const w = $("#wrap");
@@ -78,6 +83,7 @@ document.addEventListener("click", (e) => {
   const c = e.target.closest("[data-connect]");
   if (c) { close(); invoke("connect_account", { agent: c.dataset.connect }); }
   if (e.target.closest("[data-refresh]")) invoke("refresh_quotas");
+  if (e.target.closest("#doUpdate")) invoke("install_update");
   const g = e.target.closest("[data-goto]");
   if (g) { close(); invoke("show_settings", { page: g.dataset.goto }); }
 });

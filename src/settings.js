@@ -92,6 +92,9 @@ function bindControls() {
     $("#refresh").disabled = true;
   });
   $("#quit").addEventListener("click", () => invoke("quit"));
+  $("#updateBtn").addEventListener("click", () =>
+    invoke(state.update?.state === "ready" ? "install_update" : "check_update"),
+  );
   document.addEventListener("click", (e) => {
     const c = e.target.closest("[data-connect]");
     if (c) {
@@ -238,6 +241,32 @@ function syncMaterial() {
   set("#matC1", m.colors[0]);
   set("#matC2", m.colors[1]);
   previewMaterial(m);
+}
+
+// ───────── 自動更新 ─────────
+function renderUpdate() {
+  const u = state.update || { state: "idle" };
+  const v = u.version ? `v${u.version}` : "";
+  $("#updateSwitch").hidden = !state.updater;
+  $("#updateDesc").textContent = state.updater
+    ? t("有新版本時，開啟 DW Bar 就會自動下載並安裝。")
+    : state.platform === "windows"
+      ? t("Microsoft Store 版會由商店自動更新。")
+      : t("這個版本不支援自動更新。");
+  const text = {
+    checking: t("正在檢查更新…"),
+    none: t("目前已是最新版本（v{version}）", { version: state.version }),
+    downloading: t("正在下載 {v}…", { v }),
+    ready: t("{v} 已下載完成", { v }),
+    installing: t("正在安裝 {v}…", { v }),
+    error: t("暫時無法檢查更新，稍後會自動再試"),
+  }[u.state] || t("目前版本 v{version}", { version: state.version });
+  $("#updateStatus").textContent = state.updater ? text : "";
+  $("#updateStatus").title = u.error || "";
+  const btn = $("#updateBtn");
+  btn.hidden = !state.updater || ["checking", "downloading", "installing"].includes(u.state);
+  btn.textContent = u.state === "ready" ? t("重新啟動並更新") : t("檢查更新");
+  btn.classList.toggle("primary", u.state === "ready");
 }
 
 // ───────── 位置（九宮格） ─────────
@@ -419,6 +448,7 @@ function renderDiag() {
     ["全螢幕", t(state.fullscreen ? "是（膠囊已隱藏）" : "否")],
     ["設定檔", state.config_path],
     ["紀錄檔", state.log_path],
+    ["線上規則", state.rules_version ? `v${state.rules_version}` : t("內建")],
   ];
   $("#kv").innerHTML = rows.map(([k, v]) => `<dt>${t(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join("");
   $("#placeHint").textContent = p.fallback ? t("Windows 拒絕了嵌入，目前改用「浮貼在上方」。") : "";
@@ -478,6 +508,7 @@ function renderAll() {
   applyIconStyle(config.icon_style);
   $("#ver").textContent = "v" + state.version;
   $("#autostartNote").hidden = !state.autostart_blocked;
+  renderUpdate();
   syncControls();
   renderUsage();
   renderAgents();

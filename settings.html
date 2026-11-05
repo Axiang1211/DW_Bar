@@ -179,6 +179,11 @@
             <label class="switch"><input type="checkbox" data-key="autostart" /><i></i></label>
           </div>
           <div class="row">
+            <div class="lbl"><b>自動更新</b><span id="updateDesc">有新版本時，開啟 DW Bar 就會自動下載並安裝。</span>
+              <span class="upd-line"><span id="updateStatus"></span><button class="btn small" id="updateBtn" hidden></button></span></div>
+            <label class="switch" id="updateSwitch"><input type="checkbox" data-key="auto_update" /><i></i></label>
+          </div>
+          <div class="row">
             <div class="lbl"><b>更新頻率</b><span>每次更新會在背景短暫執行一次各家的命令列工具。</span></div>
             <select id="refreshMin">
               <option value="2">每 2 分鐘</option><option value="5">每 5 分鐘</option><option value="10">每 10 分鐘</option>

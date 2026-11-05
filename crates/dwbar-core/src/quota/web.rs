@@ -272,7 +272,13 @@ pub const DEEPSEEK: Service = Service {
     flow: DEFAULT_FLOW,
 };
 
+/// The service to use for `agent`: an online rule when one is in use, else the built-in one.
 pub fn service_for(agent: &str) -> Option<Service> {
+    super::rules::service(agent).or_else(|| builtin(agent))
+}
+
+/// The rules built into this version.
+pub fn builtin(agent: &str) -> Option<Service> {
     match agent {
         "claude" => Some(CLAUDE),
         "codex" => Some(CHATGPT),
@@ -286,6 +292,10 @@ pub fn service_for(agent: &str) -> Option<Service> {
 
 /// Turn what an agent's script returned into a reading.
 pub fn parse(agent: &str, data: &Value, now: i64) -> Reading {
+    // A script from the online rules may return the standard result itself.
+    if data.get("dwbar").and_then(Value::as_u64) == Some(1) {
+        return parse_standard(agent, data, now);
+    }
     match agent {
         "claude" => parse_claude(data),
         "codex" => parse_chatgpt(data, now),
@@ -294,6 +304,53 @@ pub fn parse(agent: &str, data: &Value, now: i64) -> Reading {
         "windsurf" => parse_windsurf(data),
         _ => parse_deepseek(data),
     }
+}
+
+fn display_name(agent: &str) -> &'static str {
+    match agent {
+        "claude" => "Claude",
+        "codex" => "Codex",
+        "gemini" => "Gemini",
+        "cursor" => "Cursor",
+        "windsurf" => "Windsurf",
+        "deepseek" => "DeepSeek",
+        _ => "AI",
+    }
+}
+
+/// The standard result an online-rules script can return:
+/// `{"dwbar": 1, "plan"?, "account"?, "balance"?, "notice"?, "windows": [{"period":
+/// "five_hour"|"day"|"week"|"month"|"other", "label"?, "used_percent" | "remaining_percent",
+/// "resets_at"?: unix seconds or ISO 8601}]}`. Labels default to the usual names.
+pub fn parse_standard(agent: &str, data: &Value, now: i64) -> Reading {
+    let mut r = base(agent, display_name(agent));
+    let text = |k: &str| data[k].as_str().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+    r.plan = text("plan");
+    r.account = text("account");
+    r.balance = text("balance");
+    for w in data["windows"].as_array().cloned().unwrap_or_default() {
+        let (period, default_label) = match w["period"].as_str().unwrap_or("") {
+            "five_hour" => (Period::FiveHour, "5 小時"),
+            "day" => (Period::Day, "每日"),
+            "week" => (Period::Week, "每週"),
+            "month" => (Period::Month, "每月"),
+            _ => (Period::Other, "額度"),
+        };
+        let used = w["used_percent"]
+            .as_f64()
+            .or_else(|| w["remaining_percent"].as_f64().map(|left| 100.0 - left));
+        let Some(used) = used.filter(|u| u.is_finite()) else { continue };
+        let resets_at = w["resets_at"].as_i64().or_else(|| iso(&w["resets_at"])).filter(|t| *t > now - 86_400);
+        r.windows.push(Window {
+            period,
+            label: w["label"].as_str().filter(|s| !s.is_empty()).unwrap_or(default_label).into(),
+            used_percent: used.clamp(0.0, 100.0),
+            resets_at,
+        });
+    }
+    r.ok = !r.windows.is_empty() || r.balance.is_some();
+    r.notice = text("notice").or_else(|| (!r.ok).then(|| "沒有資料".into()));
+    r
 }
 
 fn base(agent: &str, name: &str) -> Reading {
@@ -535,6 +592,25 @@ pub fn parse_chatgpt(data: &Value, now: i64) -> Reading {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn standard_result() {
+        let d = serde_json::json!({"dwbar": 1, "plan": "Pro", "windows": [
+            {"period": "five_hour", "used_percent": 30, "resets_at": 2000000000},
+            {"period": "week", "remaining_percent": 80, "resets_at": "2033-05-18T03:33:20Z"},
+            {"period": "week"}
+        ]});
+        let r = parse("gemini", &d, 1_900_000_000);
+        assert!(r.ok);
+        assert_eq!(r.name, "Gemini");
+        assert_eq!(r.windows.len(), 2);
+        assert_eq!(r.windows[0].label, "5 小時");
+        assert_eq!(r.windows[1].used_percent, 20.0);
+        assert_eq!(r.windows[1].resets_at, Some(2_000_000_000));
+        let empty = parse("cursor", &serde_json::json!({"dwbar": 1, "notice": "x"}), 0);
+        assert!(!empty.ok);
+        assert_eq!(empty.notice.as_deref(), Some("x"));
+    }
     use super::*;
     use serde_json::json;
 

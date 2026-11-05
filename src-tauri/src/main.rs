@@ -3,6 +3,7 @@
 
 mod accounts;
 mod i18n;
+mod updates;
 mod platform;
 mod state;
 
@@ -321,6 +322,39 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 // ───────────────────────── commands ─────────────────────────
 
+/// Online reading rules downloaded by the capsule page: used when signed and newer.
+#[tauri::command]
+async fn apply_rules(app: AppHandle, text: String, sig: String) -> Result<String, String> {
+    use dwbar_core::quota::rules::{self, Installed};
+    match rules::install(&text, &sig, env!("CARGO_PKG_VERSION")) {
+        Ok(Installed::Updated(v)) => {
+            request_refresh(&app);
+            broadcast(&app);
+            Ok(format!("v{v}"))
+        }
+        Ok(Installed::Unchanged(v)) => Ok(format!("v{v}")),
+        Err(e) => {
+            log::write("rules", &format!("online rules not used: {e}"));
+            Err(e)
+        }
+    }
+}
+
+/// 檢查更新: download a new version if there is one, then wait for install_update.
+#[tauri::command]
+async fn check_update(app: AppHandle) {
+    updates::check(&app, false).await;
+}
+
+/// 重新啟動並更新.
+#[tauri::command]
+async fn install_update(app: AppHandle) {
+    let pending = app.state::<updates::Pending>().0.lock().unwrap().take();
+    if let Some((update, bytes)) = pending {
+        updates::install(&app, update, bytes);
+    }
+}
+
 /// The pages resolved the UI language (setting or system): follow it in native text.
 #[tauri::command]
 async fn set_ui_lang(app: AppHandle, lang: String) {
@@ -609,11 +643,16 @@ fn main() {
     let app = tauri::Builder::default()
         // Must be first: a second launch just opens the settings of the running one.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| open_settings(app, None)))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::Pending::default())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![dwbar_core::startup::ARG])))
         .manage(AppState::new(config))
         .invoke_handler(tauri::generate_handler![
             get_state,
             set_ui_lang,
+            apply_rules,
+            check_update,
+            install_update,
             save_config,
             refresh_quotas,
             capsule_resize,
@@ -644,7 +683,9 @@ fn main() {
             create_panel(&handle);
             start_watcher(&handle);
             apply_style(handle.state::<AppState>().inner.lock().unwrap().config.style.clone());
+            dwbar_core::quota::rules::load_cached(env!("CARGO_PKG_VERSION"));
             start_quota_thread(&handle);
+            updates::start(&handle);
             let autostart = handle.state::<AppState>().inner.lock().unwrap().config.autostart;
             sync_autostart(&handle, autostart);
             Ok(())

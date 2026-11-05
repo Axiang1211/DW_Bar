@@ -36,7 +36,7 @@ jobs:
           - name: macOS (Apple Silicon + Intel)
             os: macos-latest
             target: universal-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
             artifact: mac
     steps:
       - uses: actions/checkout@v4
@@ -62,8 +62,21 @@ jobs:
         if: matrix.artifact == 'win-x64'
         run: cargo test -p dwbar-core
 
+      # With the signing key (repository secret TAURI_SIGNING_PRIVATE_KEY) the build also
+      # writes signed update files; without it the installers are built as before.
       - name: Build
-        run: npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          else
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY is not set: no auto-update files in this build"
+            npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} \
+              --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          fi
 
       - name: Stable file names
         shell: bash
@@ -71,11 +84,15 @@ jobs:
           set -e
           mkdir -p out
           B="target/${{ matrix.target }}/release/bundle"
+          # copy SRC DEST: the file, and its update signature when there is one.
+          copy() { cp "$1" "$2"; if [ -f "$1.sig" ]; then cp "$1.sig" "$2.sig"; fi; }
           case "${{ matrix.artifact }}" in
-            win-x64)   cp "$(ls $B/nsis/*.exe | head -1)" out/DW-Bar-Setup.exe
+            win-x64)   copy "$(ls $B/nsis/*.exe | head -1)" out/DW-Bar-Setup.exe
                        cp "$(ls $B/msi/*.msi | head -1)"  out/DW-Bar.msi ;;
-            win-arm64) cp "$(ls $B/nsis/*.exe | head -1)" out/DW-Bar-Setup-arm64.exe ;;
-            mac)       cp "$(ls $B/dmg/*.dmg | head -1)"  out/DW-Bar.dmg ;;
+            win-arm64) copy "$(ls $B/nsis/*.exe | head -1)" out/DW-Bar-Setup-arm64.exe ;;
+            mac)       cp "$(ls $B/dmg/*.dmg | head -1)"  out/DW-Bar.dmg
+                       T="$(ls $B/macos/*.app.tar.gz 2>/dev/null | head -1)"
+                       if [ -n "$T" ]; then copy "$T" out/DW-Bar.app.tar.gz; fi ;;
           esac
           ls -la out
 
@@ -177,6 +194,8 @@ jobs:
           pattern: DW-Bar-*
           path: out
           merge-multiple: true
+      - name: Update manifest (latest.json)
+        run: node scripts/latest-json.mjs out
       - name: Version
         id: v
         env:

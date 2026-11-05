@@ -377,3 +377,7 @@ details summary { cursor: pointer; width: max-content; }
   .mat-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mat-body { grid-template-columns: 1fr; }
 }
+
+.upd-line { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+.upd-line:empty, #updateStatus:empty { display: none; }
+#updateStatus { color: var(--fg-2); font-size: 12px; }

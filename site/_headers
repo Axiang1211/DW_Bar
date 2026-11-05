@@ -4,3 +4,6 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 /assets/*
   Cache-Control: public, max-age=604800
+/rules/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300

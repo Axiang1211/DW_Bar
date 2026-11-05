@@ -10,6 +10,7 @@ pub mod antigravity;
 mod claude;
 mod codex;
 mod engine;
+pub mod rules;
 pub mod web;
 
 pub use claude::parse_usage as parse_claude;

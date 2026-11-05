@@ -1,0 +1,43 @@
+name: Sign online rules
+
+# rules/rules.json → signed copy in site/rules/v1/ (Cloudflare publishes it with the site).
+# DW Bar only uses rules signed with the repository secret TAURI_SIGNING_PRIVATE_KEY.
+on:
+  push:
+    branches: [main]
+    paths: ["rules/rules.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sign and publish
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          set -e
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Add the repository secret TAURI_SIGNING_PRIVATE_KEY first"
+            exit 1
+          fi
+          V=$(node -p 'const r = require("./rules/rules.json"); if (r.schema !== 1 || !Number.isInteger(r.version)) throw new Error("rules.json needs schema 1 and an integer version"); r.version')
+          mkdir -p site/rules/v1
+          cp rules/rules.json site/rules/v1/rules.json
+          npx tauri signer sign site/rules/v1/rules.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/rules/v1
+          if git diff --cached --quiet; then echo "Nothing new to publish"; exit 0; fi
+          git commit -m "Publish online rules v$V"
+          git push
