@@ -91,7 +91,7 @@ jobs:
                        cp "$(ls $B/msi/*.msi | head -1)"  out/DW-Bar.msi ;;
             win-arm64) copy "$(ls $B/nsis/*.exe | head -1)" out/DW-Bar-Setup-arm64.exe ;;
             mac)       cp "$(ls $B/dmg/*.dmg | head -1)"  out/DW-Bar.dmg
-                       T="$(ls $B/macos/*.app.tar.gz 2>/dev/null | head -1)"
+                       T="$(ls $B/macos/*.app.tar.gz 2>/dev/null | head -1 || true)"
                        if [ -n "$T" ]; then copy "$T" out/DW-Bar.app.tar.gz; fi ;;
           esac
           ls -la out
